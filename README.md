@@ -439,3 +439,34 @@ Use `.env.example` to document required environment variables without exposing s
 ## License
 
 This project is currently being developed as part of the TradeRule AI project.
+
+## GitHub Development Workflow
+
+TradeRule AI follows an issue-driven development workflow using feature branches, conventional commits, and pull requests.
+
+The standard workflow is:
+
+```text
+GitHub Issue
+     ↓
+Create Feature Branch
+     ↓
+Implement Changes
+     ↓
+Run Tests
+     ↓
+Create Conventional Commits
+     ↓
+Push Branch
+     ↓
+Open Pull Request
+     ↓
+Link GitHub Issue
+     ↓
+Code Review
+     ↓
+Approval
+     ↓
+Merge into main
+     ↓
+Delete Feature Branch
