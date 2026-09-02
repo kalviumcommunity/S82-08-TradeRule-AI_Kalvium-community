@@ -1,0 +1,44 @@
+ASSIGNMENT 3.14 — TOKENS, TOKENIZATION & COST ESTIMATION
+
+Project: TradeRule AI
+
+Tokenizer:
+tiktoken — cl100k_base
+
+Command used:
+python -m backend.src.token_cost
+
+============================================================
+SAMPLE RESULTS
+============================================================
+SHORT QUESTION
+Characters : 56
+Words      : 8
+Tokens     : 9
+
+PARAGRAPH
+Characters : 286
+Words      : 41
+Tokens     : 52
+
+LONG DOCUMENT
+Characters : 887
+Words      : 122
+Tokens     : 145
+
+LONG WORDS
+Characters : 91
+Words      : 6
+Tokens     : 10
+
+CODE
+Characters : 63
+Words      : 9
+Tokens     : 17
+
+COST ESTIMATE
+Input tokens     : 233
+Output tokens    : 150
+Input rate / 1K  : $0.0005
+Output rate / 1K : $0.0015
+Estimated cost   : $0.000342
