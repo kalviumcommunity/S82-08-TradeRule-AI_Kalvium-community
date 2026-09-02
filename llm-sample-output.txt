@@ -1,0 +1,19 @@
+TradeRule AI - LLM API Successful Call
+
+Model: gemini-3.5-flash
+Endpoint: Google Gemini OpenAI-compatible API
+
+Request:
+System: You are a concise assistant.
+User: Say hello in one sentence.
+
+Response:
+Hello, how can I help you today?
+
+Usage:
+completion_tokens=9
+prompt_tokens=14
+total_tokens=198
+
+Status:
+Successful completion

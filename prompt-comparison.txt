@@ -1,0 +1,46 @@
+TradeRule AI - Prompt Comparison
+================================
+
+Task:
+Compare a vague prompt with a clear and constrained prompt for
+international shipment documentation.
+
+SYSTEM PROMPT
+-------------
+[Paste the actual system prompt here]
+
+
+VARIATION 1 - VAGUE PROMPT
+--------------------------
+What documents are needed for an international shipment?
+
+OUTPUT
+------
+[Paste actual terminal output]
+
+
+VARIATION 2 - CLEAR PROMPT
+--------------------------
+List the 5 most commonly required documents for an international shipment.
+For each document, give its name and one short sentence explaining its
+purpose. Keep the answer under 100 words and use bullet points.
+
+OUTPUT
+------
+[Paste actual terminal output]
+
+
+CHOSEN PROMPT
+-------------
+The clear/constrained prompt was selected.
+
+WHY IT WORKS BETTER
+-------------------
+The second prompt is more reliable because it explicitly defines the task,
+the number of items, the expected explanation, the output format, and the
+maximum length. The vague prompt leaves these decisions to the model,
+which can produce inconsistent structure and level of detail.
+
+The system prompt additionally defines TradeRule AI's role, scope, tone,
+response length, and fallback behaviour when sufficient information is
+not available.
