@@ -14,14 +14,15 @@ client = OpenAI(
 )
 
 
-def ask_model(messages):
+def ask_model(messages, **parameters):
     try:
         logging.info("REQUEST: %s", messages)
 
         response = client.chat.completions.create(
-            model=CHAT_MODEL,
-            messages=messages,
-        )
+    model=CHAT_MODEL,
+    messages=messages,
+    **parameters,
+)
 
         logging.info(
             "RESPONSE: %s",
