@@ -1,0 +1,91 @@
+3.23 Token-Aware Chunk Sizing & Overlap
+=======================================
+
+Branch:
+feature/token-aware-chunking
+
+Tokenizer:
+tiktoken cl100k_base
+
+Main Configuration:
+- Chunk size: 100 tokens
+- Overlap: 15 tokens
+- Overlap percentage: 15%
+
+Document Tested:
+customs_requirements.txt
+
+Document Size:
+- Cleaned length: 244 characters
+- Total tokens: 34
+
+Main Chunking Result:
+- Without overlap: 1 chunk
+- With 15-token overlap: 1 chunk
+- Average chunk size: 34.00 tokens
+
+Boundary Context Demonstration:
+- Demonstration chunk size: 30 tokens
+- Demonstration overlap: 8 tokens
+- Without overlap: 2 chunks
+- With overlap: 2 chunks
+- Exact positional overlap preserved: True
+- Verified overlapping tokens: 8
+
+Without Overlap:
+
+Chunk 1 ends with:
+"The exporter should verify"
+
+Chunk 2 begins with:
+"all applicable requirements."
+
+With Overlap:
+
+Chunk 2 contains:
+"controls before dispatch.
+
+The exporter should verify all applicable requirements."
+
+The previous boundary context is therefore preserved in the next chunk.
+
+Why Token-Aware Sizing:
+Token-based sizing provides a consistent way to control how much text is
+placed into each chunk. This is important for RAG systems because model
+context windows and input processing are token-oriented.
+
+Why 100 Tokens:
+The 100-token size is appropriate for the small sample corpus used in this
+assignment and demonstrates explicit token-based sizing. Production values
+should be tuned using retrieval-quality experiments and the target model's
+context-window requirements.
+
+Why 15-Token Overlap:
+The 15-token overlap provides approximately 15% repeated boundary context.
+This helps preserve information when an important compliance statement
+crosses a chunk boundary.
+
+Cost Tradeoff:
+Overlap duplicates tokens across adjacent chunks. This can increase embedding
+work, vector storage, and the amount of retrieved context passed to the
+language model. Therefore, overlap should be large enough to preserve
+boundary context but small enough to avoid unnecessary duplication.
+
+Top-k and Context-Window Interaction:
+If more chunks are retrieved with a larger top-k value, more chunk tokens may
+be passed into the model context. Larger chunks or excessive overlap can
+therefore consume the context budget faster. Chunk size, overlap, and top-k
+should be selected together.
+
+Production Consideration:
+The current implementation uses the tiktoken cl100k_base tokenizer for this
+assignment. The final production configuration should use token accounting
+appropriate to the selected embedding and model stack and should be validated
+experimentally.
+
+Task Verification:
+1. Token-based chunk sizing: PASS
+2. Controlled token overlap: PASS
+3. Boundary context comparison: PASS
+4. Chunk size and overlap justification: PASS
+5. Sample output and chunk statistics: PASS
