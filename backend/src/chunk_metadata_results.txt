@@ -1,0 +1,114 @@
+3.22 Chunk Metadata & Source Tracking
+=====================================
+
+Purpose:
+Attach consistent metadata to every chunk so retrieved content
+can be traced back to its original document.
+
+Source document:
+customs_requirements.txt
+
+Document type:
+txt
+
+Total chunks:
+2
+
+
+SAMPLE CHUNK 1
+---------------
+
+Text:
+International shipment compliance requires exporters to verify
+the product classification, destination requirements, customs
+documentation, and applicable export controls before dispatch.
+
+Metadata:
+source: customs_requirements.txt
+chunk_index: 0
+char_start: 0
+char_end: 187
+section: unknown
+document_type: txt
+
+
+SAMPLE CHUNK 2
+---------------
+
+Text:
+The exporter should verify all applicable requirements.
+
+Metadata:
+source: customs_requirements.txt
+chunk_index: 1
+char_start: 189
+char_end: 244
+section: unknown
+document_type: txt
+
+
+METADATA VERIFICATION
+---------------------
+
+Every chunk contains source: True
+Every chunk contains position metadata: True
+Metadata structure consistent: True
+
+
+TRACEABILITY DEMONSTRATION
+--------------------------
+
+Retrieved chunk:
+
+International shipment compliance requires exporters to verify
+the product classification, destination requirements, customs
+documentation, and applicable export controls before dispatch.
+
+Metadata identifies:
+
+Source:
+customs_requirements.txt
+
+Chunk:
+0
+
+Character range:
+0 - 187
+
+Therefore, the retrieved chunk can be traced back to its exact
+source document and position.
+
+
+TASK VERIFICATION
+-----------------
+
+PASS - Task 1: Every chunk stores its source document identifier.
+
+PASS - Task 2: Additional metadata includes chunk index,
+character start/end positions, section, and document type.
+
+PASS - Task 3: All chunks use the same metadata structure.
+
+PASS - Task 4: A retrieved chunk was traced back to
+customs_requirements.txt using its metadata.
+
+PASS - Task 5: Sample chunks containing text and metadata
+are included for inspection.
+
+
+TRADE RULE AI APPLICATION
+-------------------------
+
+Source metadata will allow future answers to cite the document
+from which retrieved compliance information originated.
+
+Position metadata can later support more precise source
+references and debugging.
+
+Additional metadata such as page number, section heading,
+effective date, or source URL can be added when those fields
+are available in the original documents.
+
+Metadata can also support future retrieval filtering, such as
+restricting results to a particular document type or policy
+version.
