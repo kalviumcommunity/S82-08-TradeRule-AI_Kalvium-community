@@ -1,0 +1,101 @@
+3.20 Text Extraction & Cleaning Pipeline
+=========================================
+
+Purpose:
+Clean raw extracted documents before downstream RAG processing.
+
+Cleaning steps:
+- Unicode normalization using NFKC
+- Common mojibake/encoding artifact repair
+- Line-ending normalization
+- Page X of Y boilerplate removal
+- Repeated document header/footer removal
+- Whitespace and tab normalization
+- Excessive blank-line removal
+
+Documents processed:
+- customs_requirements.txt
+- export_guidelines.md
+- import_rules.html
+- shipment_compliance.pdf
+
+Before/After Results:
+---------------------
+
+customs_requirements.txt
+317 -> 244 chars
+
+BEFORE:
+TradeRule AI Compliance Document
+Page 1 of 3
+International shipment compliance requires exporters to verify...
+
+AFTER:
+International shipment compliance requires exporters to verify
+the product classification, destination requirements, customs
+documentation, and applicable export controls before dispatch.
+
+export_guidelines.md
+285 -> 223 chars
+
+BEFORE:
+TradeRule AI Compliance Document
+Page 2 of 3
+# Export Guidelines
+
+AFTER:
+# Export Guidelines
+Before exporting electronic components, the exporter should verify:
+
+import_rules.html
+278 -> 204 chars
+
+BEFORE:
+Import Rules TradeRule AI Compliance Document Page 3 of 3
+Import Requirements...
+
+AFTER:
+Import Rules Import Requirements Importers should verify customs
+documentation before the shipment arrives...
+
+shipment_compliance.pdf
+111 -> 110 chars
+
+BEFORE:
+Shipment Compliance Guidelines
+Verify customs documents, product classification,
+and destination requirements.
+
+AFTER:
+Shipment Compliance Guidelines
+Verify customs documents, product classification,
+and destination requirements.
+
+Task Verification:
+------------------
+
+PASS - Task 1: Repeated headers, footers, and Page X of Y boilerplate removed.
+
+PASS - Task 2: Unicode, whitespace, tabs, line endings, and excessive
+blank lines normalized.
+
+PASS - Task 3: The same clean() function was applied consistently
+to every loaded document.
+
+PASS - Task 4: Before and after samples plus character counts were
+printed for every document.
+
+PASS - Task 5: Cleaning pipeline and sample output are included
+for reproducible review.
+
+Edge Case:
+----------
+HTML extraction can place page markers and repeated headers inline
+instead of on separate lines. The pipeline handles both standalone
+and inline boilerplate.
+
+RAG Impact:
+-----------
+Cleaning before chunking and embedding reduces retrieval noise.
+This helps prevent repeated headers, page markers, and formatting
+artifacts from becoming irrelevant embedding content.

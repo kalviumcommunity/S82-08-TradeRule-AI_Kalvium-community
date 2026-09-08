@@ -1,4 +1,8 @@
+TradeRule AI Compliance Document
+Page 2 of 3
+
 # Export Guidelines
+
 
 Before exporting electronic components, the exporter should verify:
 
@@ -7,3 +11,6 @@ Before exporting electronic components, the exporter should verify:
 - Destination-country restrictions
 - Required licenses
 - Customs documentation
+
+
+Page 2 of 3
