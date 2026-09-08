@@ -1,0 +1,202 @@
+TRADE RULE AI
+Assignment 3.18 — Prompt Templates & Reusable Prompt Design
+======================================================================
+
+
+TASK 1 — TEMPLATE WITH NAMED PLACEHOLDERS
+======================================================================
+
+Template location:
+
+prompts/answer.py
+
+Template:
+
+You are TradeRule AI, an international shipment compliance assistant.
+
+Answer clearly, concisely, and factually.
+
+Answer ONLY from the provided context.
+Do not invent regulations, requirements, or sources.
+
+If the answer cannot be determined from the context,
+say that the information is insufficient.
+
+Context:
+{context}
+
+Question:
+{question}
+
+
+Named placeholders:
+
+{context}
+{question}
+
+
+Rendering is performed using:
+
+render(template, **values)
+
+
+======================================================================
+TASK 2 — RUNTIME VALUE INJECTION
+======================================================================
+
+Example context:
+
+The shipment contains electronic components.
+The exporter must verify the applicable export
+classification and destination-country requirements.
+
+
+Example question:
+
+What should the exporter verify before dispatch?
+
+
+Rendered result:
+
+You are TradeRule AI, an international shipment compliance assistant.
+
+Answer clearly, concisely, and factually.
+
+Answer ONLY from the provided context.
+Do not invent regulations, requirements, or sources.
+
+If the answer cannot be determined from the context,
+say that the information is insufficient.
+
+Context:
+The shipment contains electronic components.
+The exporter must verify the applicable export
+classification and destination-country requirements.
+
+Question:
+What should the exporter verify before dispatch?
+
+
+======================================================================
+TASK 3 — REUSE ACROSS TWO FEATURES
+======================================================================
+
+Feature 1:
+
+backend/src/template_chat.py
+
+Purpose:
+Builds prompts for the chat/CLI path.
+
+
+Feature 2:
+
+backend/src/template_batch.py
+
+Purpose:
+Builds prompts for the batch evaluation path.
+
+
+Both features import:
+
+from prompts.answer import ANSWER_TEMPLATE, render
+
+
+Both features use the same:
+
+ANSWER_TEMPLATE
+
+
+Therefore, the prompt wording is defined only once.
+
+
+======================================================================
+TASK 4 — PROMPTS SEPARATED FROM BUSINESS LOGIC
+======================================================================
+
+Prompt module:
+
+prompts/answer.py
+
+
+Business/feature modules:
+
+backend/src/template_chat.py
+backend/src/template_batch.py
+
+
+The feature modules do not contain duplicated copies
+of the main prompt.
+
+If the prompt wording needs to change, the central
+template can be updated in:
+
+prompts/answer.py
+
+
+The feature implementations do not need to be modified
+when only the prompt wording changes.
+
+
+======================================================================
+TASK 5 — EXAMPLE RENDER
+======================================================================
+
+CHAT FEATURE:
+
+Context:
+The shipment contains electronic components.
+The exporter must verify the applicable export
+classification and destination-country requirements.
+
+Question:
+What should the exporter verify before dispatch?
+
+
+BATCH FEATURE:
+
+Context:
+Commercial invoices should contain the seller, buyer,
+goods description, value, and currency.
+
+Question:
+What information should be checked on a commercial invoice?
+
+
+Both examples are rendered using the same template.
+
+
+======================================================================
+VERSIONING / MAINTENANCE
+======================================================================
+
+The reusable template is stored in Git as a normal source file.
+
+A future prompt change can be made in:
+
+prompts/answer.py
+
+For example:
+
+Version 1:
+Answer ONLY from the provided context.
+
+Version 2:
+Answer ONLY from the provided context and explicitly
+identify which context statement supports the answer.
+
+The change can then be reviewed through a normal Git
+diff and pull request before being used by all features.
+
+
+======================================================================
+FINAL STATUS
+======================================================================
+
+Task 1 — Named placeholders: PASS
+Task 2 — Runtime injection: PASS
+Task 3 — Two features reuse template: PASS
+Task 4 — Templates separated from logic: PASS
+Task 5 — Example renders committed: PASS
+
+Assignment 3.18 — COMPLETED
