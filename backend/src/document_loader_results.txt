@@ -1,0 +1,46 @@
+3.19 Document Loading & Multi-Format Intake
+============================================
+
+Implementation:
+- backend/src/document_loader.py
+
+Sample corpus:
+- sample_corpus/customs_requirements.txt
+- sample_corpus/export_guidelines.md
+- sample_corpus/import_rules.html
+- sample_corpus/shipment_compliance.pdf
+- sample_corpus/unsupported.xyz
+
+Verification Output:
+--------------------
+
+OK   customs_requirements.txt: 188 chars
+     Sample: International shipment compliance requires exporters to verify the product classification, destination requirements...
+
+OK   export_guidelines.md: 224 chars
+     Sample: # Export Guidelines Before exporting electronic components, the exporter should verify...
+
+OK   import_rules.html: 204 chars
+     Sample: Import Rules Import Requirements Importers should verify customs documentation before the shipment arrives...
+
+OK   shipment_compliance.pdf: 111 chars
+     Sample: Shipment Compliance Guidelines Verify customs documents, product classification, and destination requirements.
+
+SKIP unsupported.xyz: unsupported format
+
+======================================================================
+DOCUMENT INTAKE SUMMARY
+======================================================================
+Loaded documents: 4
+- customs_requirements.txt: 188 chars
+- export_guidelines.md: 224 chars
+- import_rules.html: 204 chars
+- shipment_compliance.pdf: 111 chars
+
+Task Verification:
+------------------
+PASS - Task 1: Multiple document formats loaded into plain text.
+PASS - Task 2: Unsupported file skipped without crashing.
+PASS - Task 3: Source filename preserved for each loaded document.
+PASS - Task 4: Text length and sample printed for every loaded document.
+PASS - Task 5: Sample corpus included for reproducible testing.
