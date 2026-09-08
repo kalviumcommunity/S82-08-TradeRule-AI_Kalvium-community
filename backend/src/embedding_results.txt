@@ -1,0 +1,139 @@
+3.25 Embeddings Fundamentals & Vector Representation
+=====================================================
+
+Branch:
+feature/embeddings-vector-representation
+
+Embedding Model:
+gemini-embedding-001
+
+
+SAMPLE TEXTS
+------------
+
+1. How do I reset my account password?
+2. What are the steps to recover access to my login?
+3. The cafeteria menu has pasta today.
+
+
+EMBEDDING GENERATION
+--------------------
+
+Generated embeddings: 3
+
+Embedding generation: PASS
+
+
+VECTOR DIMENSION
+----------------
+
+Embedding model: gemini-embedding-001
+
+Vector dimension: 3072
+
+Text 1: 3072 dimensions
+Text 2: 3072 dimensions
+Text 3: 3072 dimensions
+
+All vectors have the same dimension: True
+
+
+SAMPLE VECTOR
+-------------
+
+Text:
+How do I reset my account password?
+
+First 8 vector values:
+
+[0.028376615, 0.033747423, 0.02427427,
+-0.034034055, -0.0014615499, 0.024662485,
+0.004740894, -0.004507337]
+
+
+COSINE SIMILARITY
+-----------------
+
+Similar pair:
+
+"How do I reset my account password?"
+
+"What are the steps to recover access to my login?"
+
+Similarity:
+0.745968
+
+
+Dissimilar pair:
+
+"How do I reset my account password?"
+
+"The cafeteria menu has pasta today."
+
+Similarity:
+0.501296
+
+
+SIMILARITY VALIDATION
+---------------------
+
+Similar pair score: 0.745968
+Dissimilar pair score: 0.501296
+
+Similar pair scores higher: True
+
+
+WHAT EMBEDDING VECTORS REPRESENT
+---------------------------------
+
+Embedding vectors are numeric representations of the
+meaning and semantic characteristics of text.
+
+They are not random IDs and they are not simple keyword
+counts. The embedding model converts text into a position
+in a high-dimensional vector space.
+
+Texts with similar meanings tend to have vectors that are
+closer together, while unrelated texts tend to be farther
+apart.
+
+This allows a RAG system to search by semantic meaning
+instead of requiring an exact keyword match.
+
+
+WHY EMBEDDINGS ENABLE SEMANTIC SEARCH
+--------------------------------------
+
+In a RAG system, each document chunk can be converted into
+an embedding vector and stored in a vector database.
+
+When a user asks a question, the question is also converted
+into an embedding vector.
+
+The system then compares the question vector with stored
+chunk vectors and retrieves the vectors that are closest
+according to a similarity measure such as cosine similarity.
+
+Because embeddings represent semantic information rather
+than only exact keywords, a question can retrieve a relevant
+document even when the document uses different wording.
+
+
+TASK VERIFICATION
+-----------------
+
+Task 1 - Generate embeddings: PASS
+
+Task 2 - Report vector dimension and verify equal dimensions: PASS
+
+Task 3 - Compare similar and dissimilar texts: PASS
+
+Task 4 - Explain what embedding vectors represent: PASS
+
+Task 5 - Commit embedding demonstration and sample output: READY
+
+
+FINAL RESULT
+------------
+
+EMBEDDING DEMONSTRATION: PASS
