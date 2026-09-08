@@ -1,0 +1,166 @@
+3.24 Corpus Preparation & Ingestion Validation
+==============================================
+
+Branch:
+feature/corpus-ingestion-validation
+
+Corpus:
+sample_corpus
+
+Pipeline:
+Load → Clean → Token-Aware Chunk → Metadata Tag → Validate
+
+INGESTION SUMMARY
+-----------------
+
+Total source documents: 5
+Successfully ingested documents: 4
+Total chunks created: 4
+Failures/skipped files: 1
+
+SOURCE FILES
+------------
+
+1. customs_requirements.txt
+   Status: SUCCESS
+   Document type: txt
+   Chunks: 1
+
+2. export_guidelines.md
+   Status: SUCCESS
+   Document type: markdown
+   Chunks: 1
+
+3. import_rules.html
+   Status: SUCCESS
+   Document type: html
+   Chunks: 1
+
+4. shipment_compliance.pdf
+   Status: SUCCESS
+   Document type: pdf
+   Chunks: 1
+
+5. unsupported.xyz
+   Status: FAILURE
+   Reason: Document could not be loaded or is an unsupported format
+
+
+COMPLETENESS VALIDATION
+-----------------------
+
+Source files: 5
+Successfully ingested: 4
+Recorded failures: 1
+Accounted for: 5
+
+Completeness check: True
+
+Validation rule:
+
+Total source files =
+Successfully ingested documents + recorded failures
+
+5 = 4 + 1
+
+Therefore, no document was silently dropped.
+
+
+CHUNK METADATA VALIDATION
+-------------------------
+
+Total chunks checked: 4
+Required metadata present: True
+
+Required metadata:
+
+- source
+- chunk_index
+- char_start
+- char_end
+- section
+- document_type
+
+
+SAMPLE CHUNK INSPECTION
+-----------------------
+
+Sample 1:
+Source: customs_requirements.txt
+Chunk index: 0
+Character range: 0 - 244
+Document type: txt
+
+Text:
+International shipment compliance requires exporters to verify
+the product classification, destination requirements, customs
+documentation, and applicable export controls before dispatch.
+
+The exporter should verify all applicable requirements.
+
+
+Sample 2:
+Source: export_guidelines.md
+Chunk index: 0
+Character range: 0 - 223
+Document type: markdown
+
+Text:
+# Export Guidelines
+
+Before exporting electronic components, the exporter should verify:
+
+- Product classification
+- Export control requirements
+- Destination-country restrictions
+- Required licenses
+- Customs documentation
+
+
+Sample 3:
+Source: import_rules.html
+Chunk index: 0
+Character range: 0 - 204
+Document type: html
+
+Text:
+Import Rules Import Requirements Importers should verify customs
+documentation before the shipment arrives. The commercial invoice
+should contain the seller, buyer, goods description, value, and currency.
+
+
+PIPELINE VALIDATION
+-------------------
+
+Load stage: PASS
+Clean stage: PASS
+Token-aware chunking stage: PASS
+Metadata tagging stage: PASS
+Failure tracking: PASS
+Completeness validation: PASS
+Chunk metadata validation: PASS
+Sample chunk inspection: PASS
+
+FULL INGESTION PIPELINE: PASS
+
+
+SCALING CONSIDERATIONS
+----------------------
+
+For a much larger corpus such as 4,000+ documents, the ingestion process
+should become resumable and observable.
+
+Useful improvements include:
+
+- Process documents incrementally instead of loading everything into memory.
+- Maintain a manifest of processed files.
+- Skip already successfully processed files during re-runs.
+- Record failures with filenames and error messages.
+- Log ingestion progress.
+- Persist ingestion status so a crash does not require restarting from zero.
+- Periodically report document and chunk counts.
+
+The same completeness principle should remain:
+
+source files =
+successful documents + recorded failures
