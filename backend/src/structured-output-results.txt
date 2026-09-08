@@ -1,0 +1,179 @@
+TRADE RULE AI
+Assignment 3.17 — Structured Output & JSON Response Handling
+======================================================================
+
+MODEL
+------
+Model: gemini-2.5-flash
+Temperature: 0.0
+Max Output Tokens: 500
+
+STRUCTURED RESPONSE SCHEMA
+--------------------------
+Pydantic model:
+
+TradeRuleResponse:
+    answer: str
+    source: str
+
+The Gemini native structured-output API was used with:
+
+response_mime_type = application/json
+response_schema = TradeRuleResponse
+
+
+======================================================================
+CASE 1 — VALID STRUCTURED OUTPUT
+======================================================================
+
+Question:
+What should be checked before an international shipment is dispatched?
+
+RAW MODEL RESPONSE:
+
+{
+  "answer": "Before dispatching an international shipment, verify all required customs documentation, permits, licenses, and compliance with import/export regulations for both origin and destination countries.",
+  "source": "International trade compliance best practices"
+}
+
+
+PARSED OBJECT:
+
+{
+  'answer': 'Before dispatching an international shipment, verify all required customs documentation, permits, licenses, and compliance with import/export regulations for both origin and destination countries.',
+  'source': 'International trade compliance best practices'
+}
+
+
+ANSWER:
+
+Before dispatching an international shipment, verify all required customs
+documentation, permits, licenses, and compliance with import/export
+regulations for both origin and destination countries.
+
+
+SOURCE:
+
+International trade compliance best practices
+
+
+RESULT:
+
+SUCCESS
+
+
+======================================================================
+CASE 2 — MALFORMED JSON AND RECOVERY
+======================================================================
+
+INITIAL MALFORMED RESPONSE:
+
+{
+  "answer": "Verify shipment documents",
+  "source": "Compliance checklist"
+  
+(Note: the closing JSON brace was intentionally omitted.)
+
+
+DETECTED ERROR:
+
+malformed JSON
+
+
+RECOVERY ACTION:
+
+The application detected the malformed JSON and issued a second
+structured-output request to Gemini using the same Pydantic schema.
+
+
+RECOVERED RAW RESPONSE:
+
+{
+  "answer": "Before dispatching an international shipment, it's crucial to verify customs documentation, ensure proper packaging, confirm compliance with import/export regulations, and check for any restricted items.",
+  "source": "International shipping best practices"
+}
+
+
+RECOVERED PARSED OBJECT:
+
+{
+  'answer': "Before dispatching an international shipment, it's crucial to verify customs documentation, ensure proper packaging, confirm compliance with import/export regulations, and check for any restricted items.",
+  'source': 'International shipping best practices'
+}
+
+
+RESULT:
+
+RECOVERY SUCCESSFUL
+
+
+======================================================================
+CASE 3 — MISSING REQUIRED FIELD
+======================================================================
+
+RAW RESPONSE:
+
+{
+  "answer": "Verify shipment documentation before dispatch."
+}
+
+
+VALIDATION ERROR:
+
+source
+Field required
+
+
+The application correctly identified that the required "source"
+field was missing.
+
+
+RESULT:
+
+VALIDATION SUCCESSFUL
+
+
+======================================================================
+IMPLEMENTATION SUMMARY
+======================================================================
+
+1. A Pydantic TradeRuleResponse schema defines the required fields:
+       answer
+       source
+
+2. Gemini native structured output is requested using:
+       response_mime_type = application/json
+       response_schema = TradeRuleResponse
+
+3. The returned JSON is parsed using:
+       json.loads()
+
+4. The parsed object is validated using:
+       TradeRuleResponse.model_validate()
+
+5. Malformed JSON is handled using:
+       json.JSONDecodeError
+
+6. Missing required fields are handled using:
+       pydantic.ValidationError
+
+7. A recovery request is issued after malformed JSON is detected.
+
+8. The recovered response is parsed and validated again.
+
+9. The final application therefore produces a usable Python object
+   instead of relying on unvalidated free-form model text.
+
+
+FINAL STATUS
+------------
+
+Assignment 3.17 — COMPLETED
+
+Valid structured output: PASS
+JSON parsing: PASS
+Pydantic validation: PASS
+Malformed JSON handling: PASS
+Malformed JSON recovery: PASS
+Missing required field handling: PASS
+Sample parsed results: PASS
