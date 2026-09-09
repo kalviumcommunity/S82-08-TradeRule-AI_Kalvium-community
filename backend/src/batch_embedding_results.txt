@@ -1,0 +1,143 @@
+======================================================================
+BATCH EMBEDDING & RATE/COST MANAGEMENT
+======================================================================
+
+Embedding model: gemini-embedding-001
+Configured batch size: 2
+Maximum attempts: 3
+Approximate price per 1K tokens: $0.00002000
+
+
+======================================================================
+FIRST RUN
+======================================================================
+
+Total chunks: 6
+Already embedded: 0
+Pending chunks: 6
+
+Batch 1:
+  Chunks: 2
+  IDs:
+    - customs-0
+    - export-0
+  Estimated input tokens: 31
+  API attempts: 1
+  Result: SUCCESS
+
+Batch 2:
+  Chunks: 2
+  IDs:
+    - import-0
+    - campus-3
+  Estimated input tokens: 25
+  API attempts: 1
+  Result: SUCCESS
+
+Batch 3:
+  Chunks: 2
+  IDs:
+    - license-0
+    - documentation-0
+  Estimated input tokens: 33
+  API attempts: 1
+  Result: SUCCESS
+
+
+RUN SUMMARY
+===========
+
+Total chunks: 6
+Total batches processed: 3
+Embeddings generated: 6
+Skipped existing embeddings: 0
+Failed chunks: 0
+Estimated input tokens: 89
+Estimated cost (USD): $0.000002
+
+Failed batches:
+  None
+
+
+======================================================================
+SECOND RUN — RESUME / SKIP TEST
+======================================================================
+
+Total chunks: 6
+Already embedded: 6
+Pending chunks: 0
+
+No pending chunks.
+All chunks already have embeddings.
+No API embedding calls required.
+
+
+RUN SUMMARY
+===========
+
+Total chunks: 6
+Total batches processed: 0
+Embeddings generated: 0
+Skipped existing embeddings: 6
+Failed chunks: 0
+Estimated input tokens: 0
+Estimated cost (USD): $0.000000
+
+Failed batches:
+  None
+
+
+======================================================================
+VALIDATION
+======================================================================
+
+Batch embedding: PASS
+Cost tracking: PASS
+Skip-on-rerun logic: PASS
+Failure tracking: PASS
+Persistent progress: PASS
+Summary accounting: PASS
+
+BATCH EMBEDDING DEMONSTRATION: PASS
+
+
+======================================================================
+RETRY / BACKOFF DESIGN
+======================================================================
+
+The pipeline uses retry handling for temporary embedding API failures.
+
+Maximum attempts: 3
+
+Exponential backoff waits:
+  Attempt 1 failure -> wait 1 second
+  Attempt 2 failure -> wait 2 seconds
+  Attempt 3 failure -> final failure
+
+The implementation keeps failed batches visible in the run
+summary instead of silently discarding them.
+
+No transient API failure occurred during the sample run,
+so no actual retry was required.
+
+
+======================================================================
+SCALABILITY / RESUMABILITY
+======================================================================
+
+Embeddings are persisted after every successful batch.
+
+Each chunk has a stable ID.
+
+Before embedding, the pipeline checks the persistent embedding
+store and creates a pending_chunks list containing only chunks
+that do not already have embeddings.
+
+This makes the pipeline safe to restart after a crash or
+partial execution.
+
+For a corpus too large for one run, the same approach can be
+extended into durable jobs or partitions. Each successful batch
+would be persisted immediately, allowing later workers or runs
+to continue from the remaining chunk IDs while respecting
+provider rate limits.
