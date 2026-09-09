@@ -1,0 +1,256 @@
+======================================================================
+EMBEDDING QUALITY CHECKS & SANITY TESTS
+======================================================================
+
+Embedding model:
+gemini-embedding-001
+
+Embedding dimension:
+3072
+
+
+======================================================================
+EMBEDDING SANITY VALIDATION
+======================================================================
+
+Chunks embedded: 6
+Embedding dimension: 3072
+Embedding dimensions consistent: PASS
+
+
+======================================================================
+TEST 1 — EXPORTER COMPLIANCE
+======================================================================
+
+Query:
+How can an exporter verify shipment compliance requirements?
+
+Expected source:
+customs_requirements.txt
+
+Top source:
+customs_requirements.txt
+
+Top score:
+0.826525
+
+Expected source position:
+1
+
+Ranking:
+
+1. customs_requirements.txt — 0.826525
+2. export_guidelines.md — 0.781196
+3. import_rules.html — 0.733149
+4. shipping_documents.md — 0.691423
+5. license_rules.txt — 0.686128
+6. campus-guide.txt — 0.457266
+
+Result:
+PASS
+
+Note:
+The expected compliance document ranked first. Other trade-related
+documents also received relatively high scores, while the unrelated
+cafeteria document ranked substantially lower.
+
+
+======================================================================
+TEST 2 — EXPORT LICENSING
+======================================================================
+
+Query:
+What export licenses and destination restrictions should I check?
+
+Expected source:
+export_guidelines.md
+
+Top source:
+export_guidelines.md
+
+Top score:
+0.818372
+
+Expected source position:
+1
+
+Ranking:
+
+1. export_guidelines.md — 0.818372
+2. license_rules.txt — 0.798431
+3. customs_requirements.txt — 0.748594
+4. shipping_documents.md — 0.611446
+5. import_rules.html — 0.588778
+6. campus-guide.txt — 0.493602
+
+Result:
+PASS
+
+Note:
+The expected export-guidelines document ranked first. The license-rules
+document was a close second, demonstrating that semantically related
+documents can receive very similar scores.
+
+
+======================================================================
+TEST 3 — IMPORT CUSTOMS DOCUMENTS
+======================================================================
+
+Query:
+What customs documents should be verified before an import shipment arrives?
+
+Expected source:
+import_rules.html
+
+Top source:
+import_rules.html
+
+Top score:
+0.890571
+
+Expected source position:
+1
+
+Ranking:
+
+1. import_rules.html — 0.890571
+2. shipping_documents.md — 0.736112
+3. export_guidelines.md — 0.711244
+4. customs_requirements.txt — 0.665991
+5. license_rules.txt — 0.599288
+6. campus-guide.txt — 0.469369
+
+Result:
+PASS
+
+Note:
+The expected import document ranked first with the highest score among
+the test cases. The shipping-documents chunk was the strongest
+alternative because both discuss customs documentation.
+
+
+======================================================================
+TEST 4 — CAFETERIA INFORMATION
+======================================================================
+
+Query:
+What food is available in the cafeteria?
+
+Expected source:
+campus-guide.txt
+
+Top source:
+campus-guide.txt
+
+Top score:
+0.813658
+
+Expected source position:
+1
+
+Ranking:
+
+1. campus-guide.txt — 0.813658
+2. license_rules.txt — 0.496292
+3. export_guidelines.md — 0.472426
+4. customs_requirements.txt — 0.469214
+5. import_rules.html — 0.461980
+6. shipping_documents.md — 0.454815
+
+Result:
+PASS
+
+Note:
+The cafeteria document ranked clearly first. The unrelated compliance
+documents had substantially lower scores.
+
+
+======================================================================
+SANITY REPORT
+======================================================================
+
+Tests: 4
+Passed: 4
+Failed: 0
+
+Test outcomes:
+
+Exporter compliance:
+  Expected: customs_requirements.txt
+  Top: customs_requirements.txt
+  Score: 0.826525
+  Position: 1
+  Result: PASS
+
+Export licensing:
+  Expected: export_guidelines.md
+  Top: export_guidelines.md
+  Score: 0.818372
+  Position: 1
+  Result: PASS
+
+Import customs documents:
+  Expected: import_rules.html
+  Top: import_rules.html
+  Score: 0.890571
+  Position: 1
+  Result: PASS
+
+Cafeteria information:
+  Expected: campus-guide.txt
+  Top: campus-guide.txt
+  Score: 0.813658
+  Position: 1
+  Result: PASS
+
+
+======================================================================
+SURPRISING / RISK CASE
+======================================================================
+
+Type:
+Pipeline observation
+
+Case:
+Similarity limitation
+
+Observation:
+
+All four known relevance cases passed, but this does not prove that
+retrieval will always be correct.
+
+The test corpus is small and contains short synthetic documents.
+The queries are also relatively clear and have obvious matching
+sources.
+
+A larger corpus containing ambiguous queries, duplicated content,
+or documents with overlapping terminology could still produce
+incorrect rankings.
+
+Therefore, these tests should be treated as smoke tests rather than
+a complete retrieval-quality benchmark.
+
+
+======================================================================
+PIPELINE CHECKS
+======================================================================
+
+Same embedding model for query and chunks: PASS
+Embedding dimensions consistent: PASS
+Cosine similarity used consistently: PASS
+Known relevance cases executed: PASS
+Ranking inspected for every test: PASS
+
+
+======================================================================
+OVERALL RESULT
+======================================================================
+
+Known relevance tests: 4
+Passed: 4
+Failed: 0
+
+Embedding quality sanity validation: PASS
+Retrieval ranking sanity validation: PASS
+
+QUALITY SANITY TESTS COMPLETE
