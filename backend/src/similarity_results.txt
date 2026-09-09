@@ -1,0 +1,105 @@
+EMBEDDING SIMILARITY & DISTANCE METRICS
+
+Query:
+How can an exporter verify shipment compliance requirements?
+
+Embedding model:
+gemini-embedding-001
+
+Metric:
+Cosine similarity
+
+Ranked Results
+==============
+
+Rank 1
+Score: 0.826525
+Source: customs_requirements.txt
+Chunk index: 0
+Section: export compliance
+Document type: txt
+
+Text:
+International shipment compliance requires exporters to verify product classification and destination requirements.
+
+
+Rank 2
+Score: 0.781196
+Source: export_guidelines.md
+Chunk index: 0
+Section: export guidelines
+Document type: markdown
+
+Text:
+Exporters should verify export control requirements, destination restrictions, required licenses, and customs documentation.
+
+
+Rank 3
+Score: 0.733149
+Source: import_rules.html
+Chunk index: 0
+Section: import requirements
+Document type: html
+
+Text:
+Importers should verify customs documentation before the shipment arrives.
+
+
+Rank 4
+Score: 0.457266
+Source: campus-guide.txt
+Chunk index: 3
+Section: cafeteria
+Document type: txt
+
+Text:
+The cafeteria menu includes pasta, rice, vegetables, and fresh fruit.
+
+
+Most Similar
+============
+Score: 0.826525
+Source: customs_requirements.txt
+
+
+Least Similar
+=============
+Score: 0.457266
+Source: campus-guide.txt
+
+
+Metric Justification
+====================
+
+Cosine similarity was chosen because it compares the direction
+of embedding vectors.
+
+For semantic embeddings, vector direction represents meaning
+in the embedding space. Higher cosine similarity indicates
+greater semantic relatedness.
+
+Similarity and distance express the same retrieval idea from
+different perspectives:
+
+- Similarity: higher score means more related.
+- Distance: lower score means more related.
+
+The ranked results can be used to select the top-k chunks
+that will later be provided to the RAG language model as
+supporting context.
+
+A high similarity score indicates semantic closeness, but it
+does not guarantee that the chunk is factually correct,
+complete, current, or safe to use by itself.
+
+Validation
+==========
+
+Cosine similarity calculation: PASS
+Query compared against chunks: PASS
+Similarity ranking: PASS
+Most similar result shown: PASS
+Least similar result shown: PASS
+Metric justification: PASS
+
+SIMILARITY RANKING DEMONSTRATION: PASS
