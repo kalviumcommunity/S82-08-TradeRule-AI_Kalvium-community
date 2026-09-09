@@ -1,0 +1,183 @@
+3.26 Generating Embeddings via API
+==================================
+
+Branch:
+feature/api-embeddings
+
+Embedding API:
+OpenAI-compatible Gemini Embeddings API
+
+Embedding Model:
+gemini-embedding-001
+
+Embedding Base URL:
+https://generativelanguage.googleapis.com/v1beta/openai/
+
+
+PREPARED CORPUS
+---------------
+
+Three prepared chunks were used for the API embedding demonstration.
+
+1. customs_requirements.txt
+   Chunk index: 0
+   Section: export compliance
+   Document type: txt
+
+2. export_guidelines.md
+   Chunk index: 0
+   Section: export guidelines
+   Document type: markdown
+
+3. import_rules.html
+   Chunk index: 0
+   Section: import requirements
+   Document type: html
+
+
+EMBEDDING API RESULT
+--------------------
+
+Chunks embedded: 3
+
+API request status:
+HTTP 200 OK
+
+Vector length:
+3072
+
+All generated vectors use the same embedding model and
+have the same vector dimension.
+
+
+SAMPLE STORED RECORD
+--------------------
+
+Source text:
+
+International shipment compliance requires exporters to verify
+product classification and destination requirements.
+
+
+Metadata:
+
+source: customs_requirements.txt
+chunk_index: 0
+section: export compliance
+document_type: txt
+
+
+Vector length:
+
+3072
+
+
+First 5 vector values:
+
+[-0.013381083495914936,
+ 0.002320303814485669,
+ 0.015885574743151665,
+ -0.05390830710530281,
+ -0.020100062713027]
+
+
+STORAGE STRUCTURE
+-----------------
+
+Each generated embedding is stored together with:
+
+- Original source text
+- Source metadata
+- Embedding vector
+
+Conceptually:
+
+{
+    "text": "...",
+    "metadata": {
+        "source": "...",
+        "chunk_index": 0,
+        "section": "...",
+        "document_type": "..."
+    },
+    "embedding": [...]
+}
+
+
+ENVIRONMENT CONFIGURATION
+-------------------------
+
+The API key is loaded from the existing environment configuration:
+
+GEMINI_API_KEY
+
+The embedding model is loaded from:
+
+EMBEDDING_MODEL
+
+The API base URL is loaded from:
+
+EMBEDDING_BASE_URL
+
+No API secrets are hardcoded in the embedding script.
+
+The .env file remains excluded from version control.
+
+
+WHY SOURCE AND METADATA ARE STORED WITH THE VECTOR
+---------------------------------------------------
+
+A vector by itself only represents the semantic position of
+the chunk. During retrieval, the application also needs the
+original text to provide context to the language model.
+
+Metadata identifies where the retrieved chunk came from and
+allows the application to provide source information.
+
+Therefore, keeping the vector, source text, and metadata
+together makes the record useful for later retrieval.
+
+
+SAME MODEL FOR DOCUMENTS AND QUERIES
+------------------------------------
+
+Document chunks and user queries should use the same embedding
+model so they are represented in the same vector space.
+
+If different incompatible embedding models are used, similarity
+comparisons may no longer be meaningful.
+
+
+COST AND LATENCY
+----------------
+
+As the corpus grows, more chunks require embedding API calls.
+This increases processing time and API cost.
+
+Batching multiple chunks in one request can reduce repeated API
+calls.
+
+Previously embedded chunks should also be skipped when possible.
+A manifest containing chunk identifiers, model names, and
+timestamps can help determine which chunks need to be embedded
+again.
+
+
+TASK VERIFICATION
+-----------------
+
+Task 1 - Generate embeddings through an API: PASS
+
+Task 2 - Store vectors with source chunks and metadata: PASS
+
+Task 3 - Use environment configuration: PASS
+
+Task 4 - Print vector length and sample values: PASS
+
+Task 5 - Commit embedding script and sample output: READY
+
+
+FINAL RESULT
+------------
+
+EMBEDDING API DEMONSTRATION: PASS
