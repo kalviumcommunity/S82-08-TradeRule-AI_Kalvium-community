@@ -1,0 +1,143 @@
+EMBEDDING INDEXING & METADATA STORAGE
+=====================================
+
+Assignment: 3.31
+Collection: traderule_rag_chunks
+Qdrant URL: http://localhost:6333
+Batch size: 2
+
+------------------------------------------------------------
+LOAD EMBEDDINGS
+------------------------------------------------------------
+
+Corpus embeddings loaded: 6
+Records prepared for indexing: 6
+Record preparation validation: PASS
+
+------------------------------------------------------------
+STABLE ID MAPPING
+------------------------------------------------------------
+
+customs-0
+export-0
+import-0
+campus-3
+license-0
+documentation-0
+
+Each application-level stable chunk ID is converted into
+a deterministic UUID for use as the Qdrant point ID.
+
+------------------------------------------------------------
+BULK INDEXING
+------------------------------------------------------------
+
+Batch 1:
+customs-0
+export-0
+
+Batch insertion: PASS
+
+Batch 2:
+import-0
+campus-3
+
+Batch insertion: PASS
+
+Batch 3:
+license-0
+documentation-0
+
+Batch insertion: PASS
+
+Total records inserted this run: 6
+
+------------------------------------------------------------
+INDEX COUNT VALIDATION
+------------------------------------------------------------
+
+Expected records: 6
+Inserted this run: 6
+Indexed count in Qdrant: 6
+
+Failures: None
+
+Indexed count matches expected count: PASS
+
+------------------------------------------------------------
+STORED RECORD SCHEMA
+------------------------------------------------------------
+
+Each indexed Qdrant record contains:
+
+1. Qdrant point ID
+2. Stable application-level chunk ID
+3. Embedding vector
+4. Original source text
+5. Source document metadata
+6. Chunk index metadata
+7. Section metadata
+8. Document type metadata
+
+Embedding vector dimension: 3072
+
+------------------------------------------------------------
+SPOT-CHECK READBACK
+------------------------------------------------------------
+
+Original stable ID:
+customs-0
+
+Qdrant point ID:
+7c08b892-f805-5c17-980a-21c13f4ca9c1
+
+Readback Qdrant ID:
+7c08b892-f805-5c17-980a-21c13f4ca9c1
+
+Qdrant ID validation: PASS
+
+Readback stable ID:
+customs-0
+
+Stable chunk ID validation: PASS
+
+Source:
+customs_requirements.txt
+
+Chunk index:
+0
+
+Section:
+export compliance
+
+Document type:
+txt
+
+Source text validation: PASS
+
+Metadata validation: PASS
+
+Vector length:
+3072
+
+Vector length validation: PASS
+
+Text preview:
+International shipment compliance requires exporters to
+verify product classification and destination requirements.
+
+------------------------------------------------------------
+FINAL VALIDATION
+------------------------------------------------------------
+
+All corpus embeddings loaded: PASS
+Vector + text + metadata stored: PASS
+Indexed count matches chunk count: PASS
+Spot-check integrity: PASS
+Failures: None
+
+------------------------------------------------------------
+FINAL RESULT
+------------------------------------------------------------
+
+EMBEDDING INDEXING: PASS
