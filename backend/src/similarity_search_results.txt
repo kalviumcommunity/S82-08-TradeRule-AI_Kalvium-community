@@ -1,0 +1,244 @@
+SIMILARITY SEARCH & TOP-K RETRIEVAL RESULTS
+============================================
+
+Query:
+How can an exporter verify shipment compliance requirements?
+
+Embedding model:
+gemini-embedding-001
+
+Qdrant URL:
+http://localhost:6333
+
+Collection:
+traderule_rag_chunks
+
+Query embedding dimension:
+3072
+
+First 5 query vector values:
+[-0.009550191462039948, 0.00657024746760726,
+ 0.013305382803082466, -0.05162058398127556,
+ -0.005272726062685251]
+
+Query embedding validation:
+PASS
+
+
+TOP-K RETRIEVAL
+===============
+
+k = 1
+------
+
+Rank: 1
+Score: 0.826525
+Chunk ID: customs-0
+Source: customs_requirements.txt
+Chunk index: 0
+Section: export compliance
+Document type: txt
+
+Text:
+International shipment compliance requires exporters to verify
+product classification anddestination requirements.
+
+
+k = 3
+------
+
+Rank: 1
+Score: 0.826525
+Chunk ID: customs-0
+Source: customs_requirements.txt
+Chunk index: 0
+Section: export compliance
+Document type: txt
+
+Text:
+International shipment compliance requires exporters to verify
+product classification anddestination requirements.
+
+
+Rank: 2
+Score: 0.781196
+Chunk ID: export-0
+Source: export_guidelines.md
+Chunk index: 0
+Section: export guidelines
+Document type: markdown
+
+Text:
+Exporters should verify export control requirements, destination
+restrictions, required licenses, and customs documentation.
+
+
+Rank: 3
+Score: 0.733149
+Chunk ID: import-0
+Source: import_rules.html
+Chunk index: 0
+Section: import requirements
+Document type: html
+
+Text:
+Importers should verify customs documentation before the shipment
+arrives.
+
+
+k = 5
+------
+
+Rank: 1
+Score: 0.826525
+Chunk ID: customs-0
+Source: customs_requirements.txt
+Chunk index: 0
+Section: export compliance
+Document type: txt
+
+Text:
+International shipment compliance requires exporters to verify
+product classification anddestination requirements.
+
+
+Rank: 2
+Score: 0.781196
+Chunk ID: export-0
+Source: export_guidelines.md
+Chunk index: 0
+Section: export guidelines
+Document type: markdown
+
+Text:
+Exporters should verify export control requirements, destination
+restrictions, required licenses, and customs documentation.
+
+
+Rank: 3
+Score: 0.733149
+Chunk ID: import-0
+Source: import_rules.html
+Chunk index: 0
+Section: import requirements
+Document type: html
+
+Text:
+Importers should verify customs documentation before the shipment
+arrives.
+
+
+Rank: 4
+Score: 0.691423
+Chunk ID: documentation-0
+Source: shipping_documents.md
+Chunk index: 0
+Section: customs documentation
+Document type: markdown
+
+Text:
+Commercial invoices, packing lists, and customs declarations should
+be prepared accurately for international shipments.
+
+
+Rank: 5
+Score: 0.686128
+Chunk ID: license-0
+Source: license_rules.txt
+Chunk index: 0
+Section: export licensing
+Document type: txt
+
+Text:
+Certain controlled products may require an export license before
+shipment depending on destination and classification.
+
+
+VALIDATION
+==========
+
+Query embedded with document embedding model:
+PASS
+
+Top-k similarity search:
+PASS
+
+Scores returned:
+PASS
+
+Source text returned:
+PASS
+
+Metadata returned:
+PASS
+
+Results sorted by similarity:
+PASS
+
+
+CHANGING-K DEMONSTRATION
+========================
+
+k = 1:
+1 retrieved chunk
+
+k = 3:
+3 retrieved chunks
+
+k = 5:
+5 retrieved chunks
+
+Changing k changes retrieved context:
+PASS
+
+
+OBSERVATION
+===========
+
+The highest-scoring result is customs-0 from
+customs_requirements.txt with a similarity score of 0.826525.
+
+The second-highest result is export-0 from
+export_guidelines.md with a score of 0.781196.
+
+The third result is import-0 from import_rules.html
+with a score of 0.733149.
+
+When k increases from 1 to 3 and then to 5, additional
+potentially relevant chunks are included in the retrieved
+context.
+
+A larger k can improve recall because more potentially useful
+chunks are retrieved. However, it can also introduce less
+relevant information, increase latency and cost, and consume
+more of the downstream language model's context window.
+
+The query uses gemini-embedding-001, the same embedding model
+used for the document chunks. This ensures that the query and
+document embeddings are represented in the same vector space,
+making their similarity comparison meaningful.
+
+
+FINAL RESULT
+============
+
+Similarity Search:
+PASS
+
+Top-K Retrieval:
+PASS
+
+Score Retrieval:
+PASS
+
+Text Retrieval:
+PASS
+
+Metadata Retrieval:
+PASS
+
+Changing-K Demonstration:
+PASS
+
+OVERALL:
+TOP-K RETRIEVAL: PASS
