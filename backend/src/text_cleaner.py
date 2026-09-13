@@ -1,8 +1,10 @@
 import re
 import unicodedata
 
-from .document_loader import load_corpus
-
+try:
+    from .document_loader import load_corpus
+except ImportError:
+    from document_loader import load_corpus
 
 def clean(text: str) -> str:
     """

@@ -2,16 +2,25 @@ from pathlib import Path
 import json
 import uuid
 
+
 import requests
 
-from .config import QDRANT_URL, QDRANT_API_KEY
+import os
+
+try:
+    from .config import QDRANT_URL, QDRANT_API_KEY
+except ImportError:
+    from config import QDRANT_URL, QDRANT_API_KEY
 
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
-COLLECTION_NAME = "traderule_rag_chunks"
+COLLECTION_NAME = os.getenv(
+    "COLLECTION_NAME",
+    "traderule_rag_chunks",
+)
 
 EMBEDDING_STORE = Path(
     "backend/src/embedding_store.json"

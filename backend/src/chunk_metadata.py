@@ -1,8 +1,13 @@
 from pathlib import Path
 
-from .document_loader import load_corpus
-from .document_chunker import paragraph_chunks
-from .text_cleaner import clean
+try:
+    from .document_loader import load_corpus
+    from .document_chunker import paragraph_chunks
+    from .text_cleaner import clean
+except ImportError:
+    from document_loader import load_corpus
+    from document_chunker import paragraph_chunks
+    from text_cleaner import clean
 
 
 def get_document_type(source: str) -> str:

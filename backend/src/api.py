@@ -1,19 +1,15 @@
 """
-3.44 Backend API for the RAG Service
+3.45 Backend API for the TradeRule AI RAG Service.
 
-TradeRule AI FastAPI service.
+Endpoints:
 
-Provides:
+    GET  /health
     POST /query
+    POST /documents
 
-The endpoint:
-    1. Validates the incoming question.
-    2. Calls the existing hallucination-guarded RAG pipeline.
-    3. Returns a structured JSON response.
-    4. Exposes grounded answers with source metadata.
-    5. Handles validation and server errors.
-    6. Uses environment-based configuration through the
-       existing RAG modules.
+The /documents endpoint allows the knowledge base
+to grow at runtime by uploading and indexing
+new documents.
 """
 
 from __future__ import annotations
@@ -23,80 +19,127 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Any
 
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
 
+# ============================================================
+# MODULE PATH
+# ============================================================
 
-# =====================================================================
-# PATH + ENVIRONMENT CONFIGURATION
-# =====================================================================
-
-# Allow imports from backend/src when running:
-#     uvicorn api:app --reload
-#
-# This is intentionally kept local to the API entry point.
-SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
 
 if SRC_DIR not in sys.path:
-    sys.path.insert(0, SRC_DIR)
+    sys.path.insert(
+        0,
+        SRC_DIR,
+    )
+
+
+# ============================================================
+# ENVIRONMENT
+# ============================================================
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
 
-# =====================================================================
-# EXISTING TRADE RULE AI PIPELINE
-# =====================================================================
+# ============================================================
+# FASTAPI
+# ============================================================
+
+from fastapi import (
+    FastAPI,
+    File,
+    HTTPException,
+    UploadFile,
+)
+
+from pydantic import (
+    BaseModel,
+    Field,
+)
+
+
+# ============================================================
+# RAG COMPONENTS
+# ============================================================
 
 from hallucination_guardrails import (
-    REFUSAL_MESSAGE,
     TOP_K,
     create_embedding_client,
     create_generation_client,
     guarded_answer,
 )
 
+from document_upload import (
+    store_upload,
+    process_uploaded_document,
+)
 
-# =====================================================================
+
+# ============================================================
 # API CONFIGURATION
-# =====================================================================
+# ============================================================
 
-API_HOST = os.getenv("API_HOST", "127.0.0.1")
-API_PORT = int(os.getenv("API_PORT", "8000"))
+API_HOST = os.getenv(
+    "API_HOST",
+    "127.0.0.1",
+)
 
-API_TITLE = "TradeRule AI RAG API"
-API_VERSION = "1.0.0"
+API_PORT = int(
+    os.getenv(
+        "API_PORT",
+        "8000",
+    )
+)
+
+API_TITLE = os.getenv(
+    "API_TITLE",
+    "TradeRule AI RAG API",
+)
+
+API_VERSION = os.getenv(
+    "API_VERSION",
+    "1.0.0",
+)
 
 
-# =====================================================================
-# CLIENT STATE
-# =====================================================================
+# ============================================================
+# CLIENTS
+# ============================================================
 
 embedding_client: Any = None
 generation_client: Any = None
 
 
-# =====================================================================
-# REQUEST / RESPONSE MODELS
-# =====================================================================
-
+# ============================================================
+# REQUEST MODELS
+# ============================================================
 
 class QueryRequest(BaseModel):
     """
-    Request body accepted by POST /query.
+    Request body for /query.
     """
 
     question: str = Field(
         ...,
         min_length=3,
         max_length=1000,
-        description="Compliance question to answer using TradeRule AI.",
+        description=(
+            "Compliance question to answer "
+            "using TradeRule AI."
+        ),
     )
 
 
+# ============================================================
+# QUERY RESPONSE MODELS
+# ============================================================
+
 class Source(BaseModel):
     """
-    Source information returned with the grounded answer.
+    Retrieved source metadata.
     """
 
     citation: str
@@ -107,57 +150,90 @@ class Source(BaseModel):
 
 class QueryResponse(BaseModel):
     """
-    Structured response returned by POST /query.
+    Structured RAG response.
     """
 
     answer: str
+
     sources: list[Source]
+
     status: str
 
     retrieval_count: int
+
     top_score: float
+
     supporting_chunks: int
+
     threshold: float
+
     reason: str
 
 
-class HealthResponse(BaseModel):
+# ============================================================
+# DOCUMENT UPLOAD RESPONSE
+# ============================================================
+
+class DocumentUploadResponse(BaseModel):
     """
-    Response returned by GET /health.
+    Structured response returned after
+    successful document indexing.
     """
 
     status: str
+
+    filename: str
+
+    summary: dict[str, Any]
+
+
+# ============================================================
+# HEALTH RESPONSE
+# ============================================================
+
+class HealthResponse(BaseModel):
+    """
+    Health check response.
+    """
+
+    status: str
+
     service: str
+
     version: str
 
 
-# =====================================================================
+# ============================================================
 # CLIENT INITIALIZATION
-# =====================================================================
-
+# ============================================================
 
 def initialize_clients() -> None:
     """
-    Create the embedding and generation clients once when
-    the API starts.
-
-    API keys and model configuration are loaded by the
-    existing RAG modules from environment variables.
+    Initialize embedding and generation clients.
     """
 
     global embedding_client
     global generation_client
 
-    embedding_client = create_embedding_client()
-    generation_client = create_generation_client()
+    embedding_client = (
+        create_embedding_client()
+    )
 
+    generation_client = (
+        create_generation_client()
+    )
+
+
+# ============================================================
+# APPLICATION LIFESPAN
+# ============================================================
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(
+    app: FastAPI,
+):
     """
-    FastAPI application lifecycle.
-
-    Clients are initialized when the server starts.
+    Initialize RAG clients when the API starts.
     """
 
     initialize_clients()
@@ -165,26 +241,24 @@ async def lifespan(app: FastAPI):
     yield
 
 
-# =====================================================================
+# ============================================================
 # FASTAPI APPLICATION
-# =====================================================================
-
+# ============================================================
 
 app = FastAPI(
     title=API_TITLE,
     version=API_VERSION,
     description=(
-        "Backend API for the TradeRule AI grounded "
-        "RAG compliance assistant."
+        "Backend API for the TradeRule AI "
+        "grounded RAG compliance assistant."
     ),
     lifespan=lifespan,
 )
 
 
-# =====================================================================
+# ============================================================
 # HEALTH ENDPOINT
-# =====================================================================
-
+# ============================================================
 
 @app.get(
     "/health",
@@ -192,7 +266,7 @@ app = FastAPI(
 )
 def health_check() -> HealthResponse:
     """
-    Check whether the API service is running.
+    Check whether the API is running.
     """
 
     return HealthResponse(
@@ -202,55 +276,57 @@ def health_check() -> HealthResponse:
     )
 
 
-# =====================================================================
+# ============================================================
 # QUERY ENDPOINT
-# =====================================================================
-
+# ============================================================
 
 @app.post(
     "/query",
     response_model=QueryResponse,
 )
-def query_rag(request: QueryRequest) -> QueryResponse:
+def query_rag(
+    request: QueryRequest,
+) -> QueryResponse:
     """
-    Run a user question through the existing guarded RAG pipeline.
-
-    Flow:
-
-        Request
-          ↓
-        Pydantic validation
-          ↓
-        guarded_answer()
-          ↓
-        Embedding
-          ↓
-        Qdrant retrieval
-          ↓
-        Hallucination guardrail
-          ↓
-        Grounded Gemini answer
-          ↓
-        Citation validation
-          ↓
-        Structured JSON response
+    Answer a compliance question using
+    the grounded RAG pipeline.
     """
 
-    if embedding_client is None or generation_client is None:
+    # --------------------------------------------------------
+    # CLIENT VALIDATION
+    # --------------------------------------------------------
+
+    if (
+        embedding_client is None
+        or generation_client is None
+    ):
         raise HTTPException(
             status_code=503,
-            detail="RAG service clients are not initialized.",
+            detail=(
+                "RAG service clients "
+                "are not initialized."
+            ),
         )
 
+    # --------------------------------------------------------
+    # REQUEST VALIDATION
+    # --------------------------------------------------------
+
     try:
+
         question = request.question.strip()
 
-        # Defensive validation after Pydantic validation.
         if not question:
             raise HTTPException(
                 status_code=400,
-                detail="Question cannot be empty.",
+                detail=(
+                    "Question cannot be empty."
+                ),
             )
+
+        # ----------------------------------------------------
+        # GUARDED RAG
+        # ----------------------------------------------------
 
         result = guarded_answer(
             question=question,
@@ -259,46 +335,92 @@ def query_rag(request: QueryRequest) -> QueryResponse:
             k=TOP_K,
         )
 
-        sources = [
-            Source(
-                citation=str(source.get("citation", "")),
-                source=(
-                    str(source["source"])
-                    if source.get("source") is not None
-                    else None
-                ),
-                chunk_id=(
-                    str(source["chunk_id"])
-                    if source.get("chunk_id") is not None
-                    else None
-                ),
-                chunk_index=source.get("chunk_index"),
+        # ----------------------------------------------------
+        # SOURCE SERIALIZATION
+        # ----------------------------------------------------
+
+        sources = []
+
+        for source in result.sources:
+
+            sources.append(
+                Source(
+                    citation=str(
+                        source.get(
+                            "citation",
+                            "",
+                        )
+                    ),
+                    source=(
+                        str(
+                            source["source"]
+                        )
+                        if source.get(
+                            "source"
+                        ) is not None
+                        else None
+                    ),
+                    chunk_id=(
+                        str(
+                            source["chunk_id"]
+                        )
+                        if source.get(
+                            "chunk_id"
+                        ) is not None
+                        else None
+                    ),
+                    chunk_index=source.get(
+                        "chunk_index"
+                    ),
+                )
             )
-            for source in result.sources
-        ]
+
+        # ----------------------------------------------------
+        # STRUCTURED RESPONSE
+        # ----------------------------------------------------
 
         return QueryResponse(
             answer=result.answer,
             sources=sources,
             status=result.status,
-            retrieval_count=result.retrieval_count,
+            retrieval_count=(
+                result.retrieval_count
+            ),
             top_score=result.top_score,
-            supporting_chunks=result.supporting_chunks,
+            supporting_chunks=(
+                result.supporting_chunks
+            ),
             threshold=result.threshold,
             reason=result.reason,
         )
 
+    # --------------------------------------------------------
+    # KNOWN HTTP ERRORS
+    # --------------------------------------------------------
+
     except HTTPException:
         raise
 
+    # --------------------------------------------------------
+    # VALIDATION ERRORS
+    # --------------------------------------------------------
+
     except ValueError as error:
+
         raise HTTPException(
             status_code=400,
             detail=str(error),
         )
 
+    # --------------------------------------------------------
+    # UNEXPECTED ERRORS
+    # --------------------------------------------------------
+
     except Exception as error:
-        print(f"RAG API error: {error}")
+
+        print(
+            f"RAG API error: {error}"
+        )
 
         raise HTTPException(
             status_code=500,
@@ -306,12 +428,114 @@ def query_rag(request: QueryRequest) -> QueryResponse:
         )
 
 
-# =====================================================================
-# APPLICATION ENTRY POINT
-# =====================================================================
+# ============================================================
+# DOCUMENT UPLOAD ENDPOINT
+# ============================================================
 
+@app.post(
+    "/documents",
+    response_model=DocumentUploadResponse,
+)
+async def upload_document(
+    file: UploadFile = File(...),
+) -> DocumentUploadResponse:
+    """
+    Upload a document and index it into
+    the existing RAG knowledge base.
+
+    Pipeline:
+
+        validate
+          ↓
+        store
+          ↓
+        load
+          ↓
+        clean
+          ↓
+        chunk
+          ↓
+        metadata
+          ↓
+        embed
+          ↓
+        Qdrant
+    """
+
+    try:
+
+        # ----------------------------------------------------
+        # STORE AND VALIDATE
+        # ----------------------------------------------------
+
+        path = await store_upload(
+            file,
+        )
+
+        # ----------------------------------------------------
+        # PROCESS DOCUMENT
+        # ----------------------------------------------------
+
+        summary = process_uploaded_document(
+            path,
+        )
+
+        # ----------------------------------------------------
+        # SUCCESS RESPONSE
+        # ----------------------------------------------------
+
+        return DocumentUploadResponse(
+            status="indexed",
+            filename=(
+                file.filename
+                or path.name
+            ),
+            summary=summary,
+        )
+
+    # --------------------------------------------------------
+    # EXPECTED CLIENT ERRORS
+    # --------------------------------------------------------
+
+    except HTTPException:
+        raise
+
+    # --------------------------------------------------------
+    # VALIDATION ERRORS
+    # --------------------------------------------------------
+
+    except ValueError as error:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    # --------------------------------------------------------
+    # UNEXPECTED PROCESSING ERRORS
+    # --------------------------------------------------------
+
+    except Exception as error:
+
+        print(
+            f"Document indexing error: "
+            f"{error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Document indexing failed."
+            ),
+        )
+
+
+# ============================================================
+# MAIN
+# ============================================================
 
 if __name__ == "__main__":
+
     import uvicorn
 
     uvicorn.run(

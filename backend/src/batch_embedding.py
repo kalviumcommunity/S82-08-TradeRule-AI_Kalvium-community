@@ -7,13 +7,18 @@ from typing import Any
 import tiktoken
 from openai import OpenAI
 
-from .config import (
-    GEMINI_API_KEY,
-    EMBEDDING_BASE_URL,
-    EMBEDDING_MODEL,
-)
-
-
+try:
+    from .config import (
+        GEMINI_API_KEY,
+        EMBEDDING_BASE_URL,
+        EMBEDDING_MODEL,
+    )
+except ImportError:
+    from config import (
+        GEMINI_API_KEY,
+        EMBEDDING_BASE_URL,
+        EMBEDDING_MODEL,
+    )
 # ============================================================
 # CONFIGURATION
 # ============================================================
