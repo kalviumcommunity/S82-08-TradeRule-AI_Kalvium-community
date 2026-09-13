@@ -1,8 +1,28 @@
+"use client";
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import ShipmentContextBar from "@/components/ShipmentContextBar";
 import ConfidenceBadge from "@/components/ConfidenceBadge";
 import CitationChip from "@/components/CitationChip";
 
 export default function ComplianceAnswerPage() {
+  return (
+    <Suspense fallback={<ResultShell answer="" question="" />}>
+      <ResultShellFromQuery />
+    </Suspense>
+  );
+}
+
+function ResultShellFromQuery() {
+  const searchParams = useSearchParams();
+  const answer = searchParams.get("answer") ?? "";
+  const question = searchParams.get("question") ?? "";
+
+  return <ResultShell answer={answer} question={question} />;
+}
+
+function ResultShell({ answer, question }: { answer: string; question: string }) {
   return (
     <div>
       <ShipmentContextBar />
@@ -24,8 +44,13 @@ export default function ComplianceAnswerPage() {
 
       <div className="surface-panel mb-6">
         <div className="page-kicker mb-2">Decision summary</div>
+        {question ? (
+          <div className="text-sm text-slate-500 mb-3">
+            Asked: <span className="text-ink">{question}</span>
+          </div>
+        ) : null}
         <p className="text-ink text-base mb-4">
-          UN3481 lithium-ion batteries packed with equipment are fully permitted for ocean freight transport into United States ports, provided they meet standard State of Charge (SOC) limitations not exceeding 30% and carry proper Class 9 hazard labeling on outer packaging containers.
+          {answer}
         </p>
 
         <h2>Required Documents / Restrictions</h2>
