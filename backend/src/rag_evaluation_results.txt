@@ -1,0 +1,110 @@
+======================================================================
+3.43 RAG EVALUATION & ANSWER QUALITY SCORING
+======================================================================
+
+SCORING DIMENSIONS
+----------------------------------------------------------------------
+Correctness       : expected answer points
+Grounding         : retrieved context support
+Citation accuracy : expected source attribution
+
+======================================================================
+QUESTION 1
+======================================================================
+Question: When does an exporter need an export license?
+
+Answer: Based on the provided context, an exporter may need an export license before shipment for certain controlled products, depending on the destination and classification [1].
+
+Correctness       : 1.00
+Grounding         : 1.00
+Citation accuracy : 0.50
+Matched points    : ['export license', 'controlled products', 'destination', 'classification']
+Missing points    : []
+Grounding reason  : The answer had retrieved context and valid citations supporting the response.
+Citation reason   : At least one expected source was cited, but additional sources were also cited.
+Matched sources   : ['export_guidelines.md', 'license_rules.txt']
+Unexpected sources: ['customs_requirements.txt', 'import_rules.html', 'shipping_documents.md']
+
+======================================================================
+QUESTION 2
+======================================================================
+Question: What documents are required for customs clearance?
+
+Answer: Based on the provided context, international shipments require the preparation of commercial invoices, packing lists, and customs declarations [1]. Additionally, depending on the product classification and destination, an export license may be required [5].
+
+Correctness       : 0.50
+Grounding         : 1.00
+Citation accuracy : 0.50
+Matched points    : ['commercial invoice', 'packing list']
+Missing points    : ['shipping documents', 'customs documentation']
+Grounding reason  : The answer had retrieved context and valid citations supporting the response.
+Citation reason   : At least one expected source was cited, but additional sources were also cited.
+Matched sources   : ['customs_requirements.txt', 'shipping_documents.md']
+Unexpected sources: ['export_guidelines.md', 'import_rules.html', 'license_rules.txt']
+
+======================================================================
+QUESTION 3
+======================================================================
+Question: What should an importer check before importing goods?
+
+Answer: An importer should verify customs documentation before the shipment arrives [1].
+
+Correctness       : 0.50
+Grounding         : 1.00
+Citation accuracy : 0.50
+Matched points    : ['documentation', 'customs']
+Missing points    : ['import requirements', 'import rules']
+Grounding reason  : The answer had retrieved context and valid citations supporting the response.
+Citation reason   : At least one expected source was cited, but additional sources were also cited.
+Matched sources   : ['customs_requirements.txt', 'import_rules.html']
+Unexpected sources: ['export_guidelines.md', 'license_rules.txt', 'shipping_documents.md']
+
+======================================================================
+QUESTION 4
+======================================================================
+Question: What should an exporter verify before shipment?
+
+Answer: Before shipment, an exporter should verify:
+* Export control requirements, destination restrictions, required licenses, and customs documentation [1].
+* Product classification and destination requirements [3].
+
+Correctness       : 0.50
+Grounding         : 1.00
+Citation accuracy : 0.50
+Matched points    : ['export requirements', 'required licenses', 'customs']
+Missing points    : ['shipping documentation']
+Grounding reason  : The answer had retrieved context and valid citations supporting the response.
+Citation reason   : At least one expected source was cited, but additional sources were also cited.
+Matched sources   : ['customs_requirements.txt', 'export_guidelines.md', 'license_rules.txt', 'shipping_documents.md']
+Unexpected sources: ['import_rules.html']
+
+======================================================================
+QUESTION 5
+======================================================================
+Question: What are the main requirements for shipping documentation?
+
+Answer: For international shipments, the main requirements for shipping documentation include:
+
+* Commercial invoices, packing lists, and customs declarations must be prepared accurately [1].
+* Exporters must verify customs documentation, along with export control requirements, destination restrictions, and required licenses [2].
+* Importers must verify customs documentation before the shipment arrives [3].
+
+Correctness       : 0.50
+Grounding         : 1.00
+Citation accuracy : 0.50
+Matched points    : ['customs documentation', 'commercial invoice', 'packing list']
+Missing points    : ['shipping documents']
+Grounding reason  : The answer had retrieved context and valid citations supporting the response.
+Citation reason   : At least one expected source was cited, but additional sources were also cited.
+Matched sources   : ['shipping_documents.md']
+Unexpected sources: ['customs_requirements.txt', 'export_guidelines.md', 'import_rules.html', 'license_rules.txt']
+
+======================================================================
+OVERALL SUMMARY
+======================================================================
+Questions                : 5
+Average correctness      : 0.60
+Average grounding        : 1.00
+Average citation accuracy: 0.50
+Overall quality          : 0.70
+Failures                 : 5

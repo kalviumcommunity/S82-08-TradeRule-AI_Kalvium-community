@@ -1,0 +1,68 @@
+[
+  {
+    "question": "When does an exporter need an export license?",
+    "expected_points": [
+      "export license",
+      "controlled products",
+      "destination",
+      "classification"
+    ],
+    "expected_sources": [
+      "license_rules.txt",
+      "export_guidelines.md"
+    ]
+  },
+  {
+    "question": "What documents are required for customs clearance?",
+    "expected_points": [
+      "commercial invoice",
+      "packing list",
+      "shipping documents",
+      "customs documentation"
+    ],
+    "expected_sources": [
+      "shipping_documents.md",
+      "customs_requirements.txt"
+    ]
+  },
+  {
+    "question": "What should an importer check before importing goods?",
+    "expected_points": [
+      "import requirements",
+      "documentation",
+      "customs",
+      "import rules"
+    ],
+    "expected_sources": [
+      "import_rules.html",
+      "customs_requirements.txt"
+    ]
+  },
+  {
+    "question": "What should an exporter verify before shipment?",
+    "expected_points": [
+      "export requirements",
+      "required licenses",
+      "customs",
+      "shipping documentation"
+    ],
+    "expected_sources": [
+      "export_guidelines.md",
+      "license_rules.txt",
+      "customs_requirements.txt",
+      "shipping_documents.md"
+    ]
+  },
+  {
+    "question": "What are the main requirements for shipping documentation?",
+    "expected_points": [
+      "shipping documents",
+      "customs documentation",
+      "commercial invoice",
+      "packing list"
+    ],
+    "expected_sources": [
+      "shipping_documents.md"
+    ]
+  }
+]
