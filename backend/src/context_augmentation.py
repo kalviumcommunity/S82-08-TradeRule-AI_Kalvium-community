@@ -50,7 +50,10 @@ QDRANT_URL = os.getenv(
     "http://localhost:6333",
 ).rstrip("/")
 
-COLLECTION_NAME = "traderule_rag_chunks"
+COLLECTION_NAME = os.getenv(
+    "COLLECTION_NAME",
+    "traderule_rag_chunks",
+)
 
 EMBEDDING_BASE_URL = os.getenv(
     "EMBEDDING_BASE_URL",
