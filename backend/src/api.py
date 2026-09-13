@@ -1,12 +1,6 @@
 """
-3.46 Chat Interface & Query UI
+3.47 Streaming Responses & Citation Display
 TradeRule AI RAG Backend API
-
-Endpoints:
-
-    GET  /health
-    POST /query
-    POST /documents
 """
 
 from __future__ import annotations
@@ -18,6 +12,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+
 # ============================================================
 # MODULE PATH
 # ============================================================
@@ -27,7 +22,10 @@ SRC_DIR = os.path.dirname(
 )
 
 if SRC_DIR not in sys.path:
-    sys.path.insert(0, SRC_DIR)
+    sys.path.insert(
+        0,
+        SRC_DIR,
+    )
 
 
 # ============================================================
@@ -48,7 +46,13 @@ from fastapi import (
     UploadFile,
 )
 
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import (
+    CORSMiddleware,
+)
+
+from fastapi.responses import (
+    StreamingResponse,
+)
 
 from pydantic import (
     BaseModel,
@@ -70,6 +74,10 @@ from hallucination_guardrails import (
 from document_upload import (
     store_upload,
     process_uploaded_document,
+)
+
+from streaming_rag import (
+    stream_rag_response,
 )
 
 
@@ -114,7 +122,7 @@ generation_client: Any = None
 
 class QueryRequest(BaseModel):
     """
-    Request body for /query.
+    Request body for RAG queries.
     """
 
     question: str = Field(
@@ -129,7 +137,7 @@ class QueryRequest(BaseModel):
 
 
 # ============================================================
-# QUERY RESPONSE MODELS
+# QUERY RESPONSE
 # ============================================================
 
 class Source(BaseModel):
@@ -138,8 +146,11 @@ class Source(BaseModel):
     """
 
     citation: str
+
     source: str | None = None
+
     chunk_id: str | None = None
+
     chunk_index: Any = None
 
 
@@ -171,8 +182,7 @@ class QueryResponse(BaseModel):
 
 class DocumentUploadResponse(BaseModel):
     """
-    Structured response returned after
-    successful document indexing.
+    Response returned after document indexing.
     """
 
     status: str
@@ -210,9 +220,13 @@ def initialize_clients() -> None:
     global embedding_client
     global generation_client
 
-    embedding_client = create_embedding_client()
+    embedding_client = (
+        create_embedding_client()
+    )
 
-    generation_client = create_generation_client()
+    generation_client = (
+        create_generation_client()
+    )
 
 
 # ============================================================
@@ -224,7 +238,7 @@ async def lifespan(
     app: FastAPI,
 ):
     """
-    Initialize RAG clients when the API starts.
+    Initialize RAG clients when API starts.
     """
 
     initialize_clients()
@@ -273,7 +287,7 @@ app.add_middleware(
 )
 def health_check() -> HealthResponse:
     """
-    Check whether the API is running.
+    Check whether API is running.
     """
 
     return HealthResponse(
@@ -284,7 +298,7 @@ def health_check() -> HealthResponse:
 
 
 # ============================================================
-# QUERY ENDPOINT
+# NORMAL QUERY ENDPOINT
 # ============================================================
 
 @app.post(
@@ -299,10 +313,6 @@ def query_rag(
     the grounded RAG pipeline.
     """
 
-    # --------------------------------------------------------
-    # CLIENT VALIDATION
-    # --------------------------------------------------------
-
     if (
         embedding_client is None
         or generation_client is None
@@ -315,13 +325,11 @@ def query_rag(
             ),
         )
 
-    # --------------------------------------------------------
-    # REQUEST VALIDATION
-    # --------------------------------------------------------
-
     try:
 
-        question = request.question.strip()
+        question = (
+            request.question.strip()
+        )
 
         if not question:
             raise HTTPException(
@@ -331,20 +339,12 @@ def query_rag(
                 ),
             )
 
-        # ----------------------------------------------------
-        # GUARDED RAG
-        # ----------------------------------------------------
-
         result = guarded_answer(
             question=question,
             embedding_client=embedding_client,
             generation_client=generation_client,
             k=TOP_K,
         )
-
-        # ----------------------------------------------------
-        # SOURCE SERIALIZATION
-        # ----------------------------------------------------
 
         sources = []
 
@@ -382,10 +382,6 @@ def query_rag(
                 )
             )
 
-        # ----------------------------------------------------
-        # STRUCTURED RESPONSE
-        # ----------------------------------------------------
-
         return QueryResponse(
             answer=result.answer,
             sources=sources,
@@ -401,16 +397,8 @@ def query_rag(
             reason=result.reason,
         )
 
-    # --------------------------------------------------------
-    # KNOWN HTTP ERRORS
-    # --------------------------------------------------------
-
     except HTTPException:
         raise
-
-    # --------------------------------------------------------
-    # VALIDATION ERRORS
-    # --------------------------------------------------------
 
     except ValueError as error:
 
@@ -418,10 +406,6 @@ def query_rag(
             status_code=400,
             detail=str(error),
         )
-
-    # --------------------------------------------------------
-    # UNEXPECTED ERRORS
-    # --------------------------------------------------------
 
     except Exception as error:
 
@@ -433,6 +417,67 @@ def query_rag(
             status_code=500,
             detail="RAG service failed.",
         )
+
+
+# ============================================================
+# STREAMING QUERY ENDPOINT
+# ============================================================
+
+@app.post(
+    "/query/stream",
+)
+async def query_stream(
+    request: QueryRequest,
+):
+    """
+    Stream a grounded RAG answer using
+    Server-Sent Events.
+
+    Events:
+
+        citations
+        token
+        done
+        error
+    """
+
+    if (
+        embedding_client is None
+        or generation_client is None
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "RAG service clients "
+                "are not initialized."
+            ),
+        )
+
+    question = (
+        request.question.strip()
+    )
+
+    if not question:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Question cannot be empty."
+            ),
+        )
+
+    return StreamingResponse(
+        stream_rag_response(
+            question=question,
+            embedding_client=embedding_client,
+            generation_client=generation_client,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ============================================================
@@ -449,47 +494,19 @@ async def upload_document(
     """
     Upload a document and index it into
     the existing RAG knowledge base.
-
-    Pipeline:
-
-        validate
-          ↓
-        store
-          ↓
-        load
-          ↓
-        clean
-          ↓
-        chunk
-          ↓
-        metadata
-          ↓
-        embed
-          ↓
-        Qdrant
     """
 
     try:
-
-        # ----------------------------------------------------
-        # STORE AND VALIDATE
-        # ----------------------------------------------------
 
         path = await store_upload(
             file,
         )
 
-        # ----------------------------------------------------
-        # PROCESS DOCUMENT
-        # ----------------------------------------------------
-
-        summary = process_uploaded_document(
-            path,
+        summary = (
+            process_uploaded_document(
+                path,
+            )
         )
-
-        # ----------------------------------------------------
-        # SUCCESS RESPONSE
-        # ----------------------------------------------------
 
         return DocumentUploadResponse(
             status="indexed",
@@ -500,16 +517,8 @@ async def upload_document(
             summary=summary,
         )
 
-    # --------------------------------------------------------
-    # EXPECTED CLIENT ERRORS
-    # --------------------------------------------------------
-
     except HTTPException:
         raise
-
-    # --------------------------------------------------------
-    # VALIDATION ERRORS
-    # --------------------------------------------------------
 
     except ValueError as error:
 
@@ -517,10 +526,6 @@ async def upload_document(
             status_code=400,
             detail=str(error),
         )
-
-    # --------------------------------------------------------
-    # UNEXPECTED PROCESSING ERRORS
-    # --------------------------------------------------------
 
     except Exception as error:
 
@@ -551,7 +556,3 @@ if __name__ == "__main__":
         port=API_PORT,
         reload=False,
     )
-
-
-
-    
