@@ -1,0 +1,263 @@
+METADATA FILTERING & HYBRID SEARCH RESULTS
+==========================================
+
+Query:
+How can an exporter verify shipment compliance requirements?
+
+Embedding model:
+gemini-embedding-001
+
+Qdrant URL:
+http://localhost:6333
+
+Collection:
+traderule_rag_chunks
+
+Filter:
+metadata.section = "export compliance"
+
+Hybrid keywords:
+exporter, compliance, classification
+
+
+QUERY EMBEDDING
+===============
+
+Vector dimension:
+3072
+
+Embedding dimension validation:
+PASS
+
+
+UNFILTERED VECTOR SEARCH
+========================
+
+Rank: 1
+Score: 0.826525
+Chunk ID: customs-0
+Source: customs_requirements.txt
+Chunk index: 0
+Section: export compliance
+Document type: txt
+
+Text:
+International shipment compliance requires exporters to verify
+product classification anddestination requirements.
+
+
+Rank: 2
+Score: 0.781196
+Chunk ID: export-0
+Source: export_guidelines.md
+Chunk index: 0
+Section: export guidelines
+Document type: markdown
+
+Text:
+Exporters should verify export control requirements, destination
+restrictions, required licenses, and customs documentation.
+
+
+Rank: 3
+Score: 0.733149
+Chunk ID: import-0
+Source: import_rules.html
+Chunk index: 0
+Section: import requirements
+Document type: html
+
+Text:
+Importers should verify customs documentation before the shipment
+arrives.
+
+
+Rank: 4
+Score: 0.691423
+Chunk ID: documentation-0
+Source: shipping_documents.md
+Chunk index: 0
+Section: customs documentation
+Document type: markdown
+
+Text:
+Commercial invoices, packing lists, and customs declarations should
+be prepared accurately for international shipments.
+
+
+Rank: 5
+Score: 0.686128
+Chunk ID: license-0
+Source: license_rules.txt
+Chunk index: 0
+Section: export licensing
+Document type: txt
+
+Text:
+Certain controlled products may require an export license before
+shipment depending on destination and classification.
+
+
+FILTERED VECTOR SEARCH
+======================
+
+Filter:
+metadata.section = "export compliance"
+
+Rank: 1
+Score: 0.826525
+Chunk ID: customs-0
+Source: customs_requirements.txt
+Chunk index: 0
+Section: export compliance
+Document type: txt
+
+Text:
+International shipment compliance requires exporters to verify
+product classification anddestination requirements.
+
+
+HYBRID RESULTS
+==============
+
+Vector weight:
+0.8
+
+Keyword weight:
+0.2
+
+Keywords:
+exporter, compliance, classification
+
+
+Rank: 1
+Vector score: 0.826525
+Keyword score: 3
+Hybrid score: 1.261220
+
+Chunk ID:
+customs-0
+
+Source:
+customs_requirements.txt
+
+Section:
+export compliance
+
+Text:
+International shipment compliance requires exporters to verify
+product classification anddestination requirements.
+
+
+PRECISION COMPARISON
+====================
+
+Unfiltered result count:
+5
+
+Filtered result count:
+1
+
+Filter target section:
+export compliance
+
+All filtered results match target section:
+True
+
+Filtering precision improvement:
+PASS
+
+
+VALIDATION
+==========
+
+Query embedding:
+PASS
+
+Metadata filter applied:
+PASS
+
+Unfiltered versus filtered comparison:
+PASS
+
+Scores returned:
+PASS
+
+Source text returned:
+PASS
+
+Metadata returned:
+PASS
+
+Keyword scoring:
+PASS
+
+Hybrid ranking:
+PASS
+
+Precision improvement demonstration:
+PASS
+
+
+OBSERVATIONS
+============
+
+The unfiltered vector search searches the entire corpus and
+returns five semantically similar chunks.
+
+The metadata filter restricts retrieval to the "export compliance"
+section. This removes unrelated sections and improves retrieval
+precision for this specific query.
+
+Vector search focuses on semantic similarity, while keyword
+matching rewards exact terms appearing in the text.
+
+Hybrid search combines both approaches. It can be useful when
+exact terms such as product names, policy IDs, error codes,
+classification terms, or other identifiers are important.
+
+The current hybrid implementation uses a simple keyword-count
+score combined with the vector similarity score.
+
+A production implementation could normalize lexical and vector
+scores before combining them.
+
+
+PROBLEM STATEMENT FILTER
+========================
+
+For the TradeRule AI problem, useful metadata filters could
+include:
+
+- Source document
+- Document type
+- Compliance section
+- Product classification
+- Destination or region
+- Regulatory category
+
+These filters can restrict retrieval to the most relevant
+compliance information before passing context to the language
+model.
+
+
+FINAL RESULT
+============
+
+Metadata Filtering:
+PASS
+
+Filtered vs Unfiltered Comparison:
+PASS
+
+Keyword Matching:
+PASS
+
+Hybrid Ranking:
+PASS
+
+Precision Improvement:
+PASS
+
+OVERALL:
+METADATA FILTERING & HYBRID SEARCH: PASS
