@@ -1,15 +1,12 @@
 """
-3.45 Backend API for the TradeRule AI RAG Service.
+3.46 Chat Interface & Query UI
+TradeRule AI RAG Backend API
 
 Endpoints:
 
     GET  /health
     POST /query
     POST /documents
-
-The /documents endpoint allows the knowledge base
-to grow at runtime by uploading and indexing
-new documents.
 """
 
 from __future__ import annotations
@@ -19,6 +16,7 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Any
 
+from dotenv import load_dotenv
 
 # ============================================================
 # MODULE PATH
@@ -29,17 +27,12 @@ SRC_DIR = os.path.dirname(
 )
 
 if SRC_DIR not in sys.path:
-    sys.path.insert(
-        0,
-        SRC_DIR,
-    )
+    sys.path.insert(0, SRC_DIR)
 
 
 # ============================================================
 # ENVIRONMENT
 # ============================================================
-
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -54,6 +47,8 @@ from fastapi import (
     HTTPException,
     UploadFile,
 )
+
+from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import (
     BaseModel,
@@ -215,13 +210,9 @@ def initialize_clients() -> None:
     global embedding_client
     global generation_client
 
-    embedding_client = (
-        create_embedding_client()
-    )
+    embedding_client = create_embedding_client()
 
-    generation_client = (
-        create_generation_client()
-    )
+    generation_client = create_generation_client()
 
 
 # ============================================================
@@ -253,6 +244,22 @@ app = FastAPI(
         "grounded RAG compliance assistant."
     ),
     lifespan=lifespan,
+)
+
+
+# ============================================================
+# CORS
+# ============================================================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
