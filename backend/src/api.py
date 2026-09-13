@@ -1,5 +1,5 @@
 """
-3.47 Streaming Responses & Citation Display
+3.48 Caching, Logging & Usage Monitoring
 TradeRule AI RAG Backend API
 """
 
@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import os
 import sys
+import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any
-
-from dotenv import load_dotenv
 
 
 # ============================================================
@@ -31,6 +31,8 @@ if SRC_DIR not in sys.path:
 # ============================================================
 # ENVIRONMENT
 # ============================================================
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -82,6 +84,24 @@ from streaming_rag import (
 
 
 # ============================================================
+# 3.48 OBSERVABILITY
+# ============================================================
+
+from rag_cache import (
+    get_cached_answer,
+    save_cached_answer,
+)
+
+from rag_logging import (
+    log_rag_request,
+)
+
+from usage_monitoring import (
+    calculate_usage,
+)
+
+
+# ============================================================
 # API CONFIGURATION
 # ============================================================
 
@@ -113,11 +133,12 @@ API_VERSION = os.getenv(
 # ============================================================
 
 embedding_client: Any = None
+
 generation_client: Any = None
 
 
 # ============================================================
-# REQUEST MODELS
+# REQUEST MODEL
 # ============================================================
 
 class QueryRequest(BaseModel):
@@ -137,7 +158,7 @@ class QueryRequest(BaseModel):
 
 
 # ============================================================
-# QUERY RESPONSE
+# SOURCE MODEL
 # ============================================================
 
 class Source(BaseModel):
@@ -153,6 +174,10 @@ class Source(BaseModel):
 
     chunk_index: Any = None
 
+
+# ============================================================
+# QUERY RESPONSE
+# ============================================================
 
 class QueryResponse(BaseModel):
     """
@@ -209,6 +234,28 @@ class HealthResponse(BaseModel):
 
 
 # ============================================================
+# CACHE SETTINGS
+# ============================================================
+
+def get_cache_settings() -> dict[str, Any]:
+    """
+    Return settings that affect a RAG response.
+
+    These values are included in the cache key so
+    responses generated under different relevant
+    configurations are not mixed.
+    """
+
+    return {
+        "top_k": TOP_K,
+        "model": os.getenv(
+            "CHAT_MODEL",
+            "gemini-2.5-flash",
+        ),
+    }
+
+
+# ============================================================
 # CLIENT INITIALIZATION
 # ============================================================
 
@@ -238,7 +285,7 @@ async def lifespan(
     app: FastAPI,
 ):
     """
-    Initialize RAG clients when API starts.
+    Initialize RAG clients when the API starts.
     """
 
     initialize_clients()
@@ -278,7 +325,7 @@ app.add_middleware(
 
 
 # ============================================================
-# HEALTH ENDPOINT
+# HEALTH
 # ============================================================
 
 @app.get(
@@ -298,7 +345,7 @@ def health_check() -> HealthResponse:
 
 
 # ============================================================
-# NORMAL QUERY ENDPOINT
+# NORMAL QUERY
 # ============================================================
 
 @app.post(
@@ -311,6 +358,12 @@ def query_rag(
     """
     Answer a compliance question using
     the grounded RAG pipeline.
+
+    Includes:
+        - caching
+        - structured logging
+        - usage tracking
+        - latency measurement
     """
 
     if (
@@ -325,40 +378,141 @@ def query_rag(
             ),
         )
 
-    try:
+    question = (
+        request.question.strip()
+    )
 
-        question = (
-            request.question.strip()
+    if not question:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Question cannot be empty."
+            ),
         )
 
-        if not question:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Question cannot be empty."
-                ),
-            )
+    request_id = str(
+        uuid.uuid4()
+    )
+
+    start_time = time.perf_counter()
+
+    cache_settings = (
+        get_cache_settings()
+    )
+
+    # ========================================================
+    # CACHE LOOKUP
+    # ========================================================
+
+    cached_response = (
+        get_cached_answer(
+            question,
+            cache_settings,
+        )
+    )
+
+    if cached_response is not None:
+
+        latency_ms = (
+            time.perf_counter()
+            - start_time
+        ) * 1000
+
+        cached_answer = (
+            cached_response[
+                "answer"
+            ]
+        )
+
+        cached_sources = (
+            cached_response[
+                "sources"
+            ]
+        )
+
+        log_rag_request(
+            request_id=request_id,
+            question=question,
+            answer=cached_answer,
+            sources=cached_sources,
+            cache_hit=True,
+            input_tokens=0,
+            output_tokens=0,
+            estimated_cost=0.0,
+            latency_ms=latency_ms,
+            status="cache_hit",
+        )
+
+        return QueryResponse(
+            answer=cached_answer,
+            sources=[
+                Source(**source)
+                for source
+                in cached_sources
+            ],
+            status="cache_hit",
+            retrieval_count=(
+                cached_response[
+                    "retrieval_count"
+                ]
+            ),
+            top_score=(
+                cached_response[
+                    "top_score"
+                ]
+            ),
+            supporting_chunks=(
+                cached_response[
+                    "supporting_chunks"
+                ]
+            ),
+            threshold=(
+                cached_response[
+                    "threshold"
+                ]
+            ),
+            reason=(
+                "Response served from "
+                "query cache."
+            ),
+        )
+
+    # ========================================================
+    # CACHE MISS → FULL RAG
+    # ========================================================
+
+    try:
 
         result = guarded_answer(
             question=question,
-            embedding_client=embedding_client,
-            generation_client=generation_client,
+            embedding_client=(
+                embedding_client
+            ),
+            generation_client=(
+                generation_client
+            ),
             k=TOP_K,
         )
 
-        sources = []
+        # ----------------------------------------------------
+        # SOURCE SERIALIZATION
+        # ----------------------------------------------------
+
+        sources: list[
+            dict[str, Any]
+        ] = []
 
         for source in result.sources:
 
             sources.append(
-                Source(
-                    citation=str(
+                {
+                    "citation": str(
                         source.get(
                             "citation",
                             "",
                         )
                     ),
-                    source=(
+                    "source": (
                         str(
                             source["source"]
                         )
@@ -367,7 +521,7 @@ def query_rag(
                         ) is not None
                         else None
                     ),
-                    chunk_id=(
+                    "chunk_id": (
                         str(
                             source["chunk_id"]
                         )
@@ -376,15 +530,97 @@ def query_rag(
                         ) is not None
                         else None
                     ),
-                    chunk_index=source.get(
-                        "chunk_index"
+                    "chunk_index": (
+                        source.get(
+                            "chunk_index"
+                        )
                     ),
-                )
+                }
             )
+
+        # ----------------------------------------------------
+        # LATENCY
+        # ----------------------------------------------------
+
+        latency_ms = (
+            time.perf_counter()
+            - start_time
+        ) * 1000
+
+        # ----------------------------------------------------
+        # USAGE
+        # ----------------------------------------------------
+
+        usage = calculate_usage(
+            question=question,
+            prompt="",
+            answer=result.answer,
+            cache_hit=False,
+        )
+
+        # ----------------------------------------------------
+        # LOG
+        # ----------------------------------------------------
+
+        log_rag_request(
+            request_id=request_id,
+            question=question,
+            answer=result.answer,
+            sources=sources,
+            cache_hit=False,
+            input_tokens=usage[
+                "input_tokens"
+            ],
+            output_tokens=usage[
+                "output_tokens"
+            ],
+            estimated_cost=usage[
+                "estimated_cost"
+            ],
+            latency_ms=latency_ms,
+            status=result.status,
+        )
+
+        # ----------------------------------------------------
+        # CACHE SUCCESSFUL ANSWERS ONLY
+        # ----------------------------------------------------
+
+        if result.status == "answered":
+
+            cached_payload = {
+                "answer": result.answer,
+                "sources": sources,
+                "retrieval_count": (
+                    result.retrieval_count
+                ),
+                "top_score": (
+                    result.top_score
+                ),
+                "supporting_chunks": (
+                    result.supporting_chunks
+                ),
+                "threshold": (
+                    result.threshold
+                ),
+            }
+
+            save_cached_answer(
+                question,
+                cached_payload,
+                cache_settings,
+            )
+
+        # ----------------------------------------------------
+        # RETURN
+        # ----------------------------------------------------
 
         return QueryResponse(
             answer=result.answer,
-            sources=sources,
+            sources=[
+                Source(**source)
+                for source
+                in sources
+            ],
             status=result.status,
             retrieval_count=(
                 result.retrieval_count
@@ -397,17 +633,50 @@ def query_rag(
             reason=result.reason,
         )
 
-    except HTTPException:
-        raise
+    # ========================================================
+    # VALIDATION ERROR
+    # ========================================================
 
     except ValueError as error:
+
+        latency_ms = (
+            time.perf_counter()
+            - start_time
+        ) * 1000
+
+        log_rag_request(
+            request_id=request_id,
+            question=question,
+            cache_hit=False,
+            latency_ms=latency_ms,
+            status="validation_error",
+            error=str(error),
+        )
 
         raise HTTPException(
             status_code=400,
             detail=str(error),
         )
 
+    # ========================================================
+    # UNEXPECTED ERROR
+    # ========================================================
+
     except Exception as error:
+
+        latency_ms = (
+            time.perf_counter()
+            - start_time
+        ) * 1000
+
+        log_rag_request(
+            request_id=request_id,
+            question=question,
+            cache_hit=False,
+            latency_ms=latency_ms,
+            status="error",
+            error=str(error),
+        )
 
         print(
             f"RAG API error: {error}"
@@ -420,7 +689,7 @@ def query_rag(
 
 
 # ============================================================
-# STREAMING QUERY ENDPOINT
+# STREAMING QUERY
 # ============================================================
 
 @app.post(
@@ -432,13 +701,6 @@ async def query_stream(
     """
     Stream a grounded RAG answer using
     Server-Sent Events.
-
-    Events:
-
-        citations
-        token
-        done
-        error
     """
 
     if (
@@ -468,8 +730,12 @@ async def query_stream(
     return StreamingResponse(
         stream_rag_response(
             question=question,
-            embedding_client=embedding_client,
-            generation_client=generation_client,
+            embedding_client=(
+                embedding_client
+            ),
+            generation_client=(
+                generation_client
+            ),
         ),
         media_type="text/event-stream",
         headers={
@@ -481,7 +747,7 @@ async def query_stream(
 
 
 # ============================================================
-# DOCUMENT UPLOAD ENDPOINT
+# DOCUMENT UPLOAD
 # ============================================================
 
 @app.post(
@@ -492,8 +758,7 @@ async def upload_document(
     file: UploadFile = File(...),
 ) -> DocumentUploadResponse:
     """
-    Upload a document and index it into
-    the existing RAG knowledge base.
+    Upload and index a document.
     """
 
     try:
@@ -530,8 +795,8 @@ async def upload_document(
     except Exception as error:
 
         print(
-            f"Document indexing error: "
-            f"{error}"
+            "Document indexing error:",
+            error,
         )
 
         raise HTTPException(
