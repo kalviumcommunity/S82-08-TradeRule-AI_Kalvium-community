@@ -1,5 +1,9 @@
-from .document_loader import load_corpus
-from .text_cleaner import clean
+try:
+    from .document_loader import load_corpus
+    from .text_cleaner import clean
+except ImportError:
+    from document_loader import load_corpus
+    from text_cleaner import clean
 
 
 def fixed_chunks(
