@@ -174,7 +174,7 @@ function ThreadContent() {
         question: trimmed,
         confidence: "low",
         preview: "Unable to retrieve real-time answer from the rules engine.",
-        fullText: "Please verify that the backend RAG service is running on http://127.0.0.1:8000.",
+        fullText: "Please verify that the backend RAG service is running.",
         citations: [],
         timestamp: "Just now",
       };

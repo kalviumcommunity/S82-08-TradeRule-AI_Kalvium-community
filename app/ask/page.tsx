@@ -7,8 +7,7 @@ import ShipmentContextBar, { getStoredShipment } from "@/components/ShipmentCont
 import ConfidenceBadge from "@/components/ConfidenceBadge";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_RAG_API_URL ||
-  "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_RAG_API_URL || "http://127.0.0.1:8000";
 
 type Source = {
   id?: string;
