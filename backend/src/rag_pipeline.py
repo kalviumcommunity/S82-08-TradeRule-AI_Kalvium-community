@@ -46,6 +46,8 @@ QDRANT_URL = os.getenv(
     "http://localhost:6333",
 ).rstrip("/")
 
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+
 COLLECTION_NAME = "traderule_rag_chunks"
 
 EMBEDDING_BASE_URL = os.getenv(
@@ -155,8 +157,16 @@ def retrieve_context(
         "with_vector": False,
     }
 
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    if QDRANT_API_KEY:
+        headers["api-key"] = QDRANT_API_KEY
+
     response = requests.post(
         url,
+        headers=headers,
         json=payload,
         timeout=60,
     )
