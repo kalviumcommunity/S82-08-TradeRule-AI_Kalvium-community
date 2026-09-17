@@ -286,24 +286,46 @@ def call_llm(
     prompt: str,
 ) -> str:
     """
-    Generate an answer using Gemini.
+    Generate an answer using Gemini with fallback model resilience.
     """
 
-    response = client.models.generate_content(
-        model=CHAT_MODEL,
-        contents=prompt,
-    )
+    models_to_try = [
+        CHAT_MODEL,
+        "gemini-2.5-flash",
+        "gemini-3.6-flash",
+    ]
 
-    answer = getattr(
-        response,
-        "text",
-        None,
-    )
+    last_error = None
+    seen_models = set()
 
-    if not answer:
-        return ""
+    for model_name in models_to_try:
+        if not model_name or model_name in seen_models:
+            continue
+        seen_models.add(model_name)
 
-    return answer.strip()
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+
+            answer = getattr(
+                response,
+                "text",
+                None,
+            )
+
+            if answer:
+                return answer.strip()
+
+        except Exception as error:
+            last_error = error
+            continue
+
+    if last_error:
+        raise last_error
+
+    return ""
 
 
 # ===================================================================
