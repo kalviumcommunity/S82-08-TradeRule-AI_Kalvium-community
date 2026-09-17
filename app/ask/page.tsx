@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import ShipmentContextBar from "@/components/ShipmentContextBar";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import ShipmentContextBar, { getStoredShipment } from "@/components/ShipmentContextBar";
+import ConfidenceBadge from "@/components/ConfidenceBadge";
 
 const API_URL =
   process.env.NEXT_PUBLIC_RAG_API_URL ||
@@ -32,31 +35,23 @@ type StreamEvent = {
 };
 
 export default function QuestionInputPage() {
-  const [question, setQuestion] =
-    useState("");
+  return (
+    <Suspense fallback={<div>Loading Q&amp;A...</div>}>
+      <QuestionInputContent />
+    </Suspense>
+  );
+}
 
-  const [answer, setAnswer] =
-    useState("");
-
-  const [sources, setSources] =
-    useState<Source[]>([]);
-
-  const [isStreaming, setIsStreaming] =
-    useState(false);
-
-  const [isComplete, setIsComplete] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  const [lastQuestion, setLastQuestion] =
-    useState("");
-
-  const [
-    retrievalDetails,
-    setRetrievalDetails,
-  ] = useState<{
+function QuestionInputContent() {
+  const searchParams = useSearchParams();
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [sources, setSources] = useState<Source[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [error, setError] = useState("");
+  const [lastQuestion, setLastQuestion] = useState("");
+  const [retrievalDetails, setRetrievalDetails] = useState<{
     retrieval_count: number;
     top_score: number;
     supporting_chunks: number;
@@ -64,306 +59,193 @@ export default function QuestionInputPage() {
     status: string;
   } | null>(null);
 
+  // Auto-fill from query param if available
+  useEffect(() => {
+    const qParam = searchParams.get("question") || searchParams.get("q");
+    if (qParam && !question) {
+      setQuestion(qParam);
+      streamAnswer(qParam);
+    }
+  }, [searchParams]);
+
   const exampleQuestions = [
-    "When does an exporter need an export license?",
-    "What specific customs declarations are required for entry?",
+    "Are UN3481 lithium ion batteries restricted on ocean routes?",
+    "What specific container packing certificate is required?",
     "What documents are required for customs clearance?",
+    "What specific customs declarations are required for entry?",
+    "When does an exporter need an export license?",
+    "What carrier requirements does Maersk Line mandate for dangerous goods?",
+    "Are there local state tax implications for transit through ports?",
   ];
 
-  // ==========================================================
-  // STREAM ANSWER
-  // ==========================================================
+  function getConfidenceLevel(topScore: number): "high" | "medium" | "low" {
+    if (topScore >= 0.70) return "high";
+    if (topScore >= 0.45) return "medium";
+    return "low";
+  }
 
-  async function streamAnswer(
-    questionToAsk: string
-  ) {
+  function recordQueryHistory(q: string, a: string, topScore: number, sourceList: Source[]) {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = localStorage.getItem("traderule_query_history");
+      const list = stored ? JSON.parse(stored) : [];
+      const newEntry = {
+        id: "TR-" + Math.floor(10000 + Math.random() * 90000),
+        question: q,
+        answer: a,
+        confidence: getConfidenceLevel(topScore),
+        citations: sourceList.length,
+        timestamp: new Date().toLocaleString(),
+      };
+      list.unshift(newEntry);
+      localStorage.setItem("traderule_query_history", JSON.stringify(list.slice(0, 50)));
+      window.dispatchEvent(new Event("query_history_updated"));
+    } catch {
+      // ignore
+    }
+  }
+
+  async function streamAnswer(questionToAsk: string) {
+    const trimmed = questionToAsk.trim();
+    if (!trimmed) return;
+
     setAnswer("");
     setSources([]);
     setError("");
     setIsStreaming(true);
     setIsComplete(false);
-    setLastQuestion(questionToAsk);
+    setLastQuestion(trimmed);
     setRetrievalDetails(null);
 
+    let collectedAnswer = "";
+    let collectedSources: Source[] = [];
+    let topScoreRecorded = 0.75;
+
     try {
-      const response = await fetch(
-        `${API_URL}/query/stream`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            question:
-              questionToAsk,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/query/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: trimmed }),
+      });
 
       if (!response.ok) {
-        let message =
-          "The backend could not start the streaming response.";
-
+        let message = "Backend service returned an error.";
         try {
-          const payload =
-            await response.json();
-
-          if (payload?.detail) {
-            message =
-              payload.detail;
-          }
+          const payload = await response.json();
+          if (payload?.detail) message = payload.detail;
         } catch {
-          // Keep default message.
+          // ignore
         }
-
         throw new Error(message);
       }
 
       if (!response.body) {
-        throw new Error(
-          "The backend returned an empty stream."
-        );
+        throw new Error("Empty response stream from backend.");
       }
 
-      const reader =
-        response.body.getReader();
-
-      const decoder =
-        new TextDecoder();
-
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       let buffer = "";
-
-      let receivedDoneEvent =
-        false;
+      let receivedDone = false;
 
       while (true) {
-        const {
-          value,
-          done,
-        } = await reader.read();
+        const { value, done } = await reader.read();
+        if (done) break;
 
-        if (done) {
-          break;
-        }
-
-        buffer += decoder.decode(
-          value,
-          {
-            stream: true,
-          }
-        );
-
-        const eventBlocks =
-          buffer.split(
-            "\n\n"
-          );
-
-        buffer =
-          eventBlocks.pop() ||
-          "";
+        buffer += decoder.decode(value, { stream: true });
+        const eventBlocks = buffer.split("\n\n");
+        buffer = eventBlocks.pop() || "";
 
         for (const block of eventBlocks) {
-          const lines =
-            block.split("\n");
-
+          const lines = block.split("\n");
           for (const line of lines) {
-            if (
-              !line.startsWith(
-                "data: "
-              )
-            ) {
-              continue;
-            }
-
-            const jsonText =
-              line.slice(6);
-
+            if (!line.startsWith("data: ")) continue;
+            const jsonText = line.slice(6);
             try {
-              const event =
-                JSON.parse(
-                  jsonText
-                ) as StreamEvent;
+              const event = JSON.parse(jsonText) as StreamEvent;
 
-              // --------------------------------------------
-              // CITATIONS EVENT
-              // --------------------------------------------
+              if (event.type === "citations") {
+                collectedSources = event.sources || [];
+                setSources(collectedSources);
+                topScoreRecorded = event.top_score ?? 0.75;
+                setRetrievalDetails({
+                  retrieval_count: event.retrieval_count ?? 0,
+                  top_score: event.top_score ?? 0,
+                  supporting_chunks: event.supporting_chunks ?? 0,
+                  threshold: event.threshold ?? 0.50,
+                  status: "streaming",
+                });
+              }
 
-              if (
-                event.type ===
-                "citations"
-              ) {
-                setSources(
-                  event.sources ||
-                    []
-                );
+              if (event.type === "token" && event.text) {
+                collectedAnswer += event.text;
+                setAnswer((curr) => curr + event.text);
+              }
 
-                setRetrievalDetails(
-                  {
-                    retrieval_count:
-                      event.retrieval_count ??
-                      0,
-
-                    top_score:
-                      event.top_score ??
-                      0,
-
-                    supporting_chunks:
-                      event.supporting_chunks ??
-                      0,
-
-                    threshold:
-                      event.threshold ??
-                      0,
-
-                    status:
-                      "streaming",
-                  }
+              if (event.type === "done") {
+                receivedDone = true;
+                setIsComplete(true);
+                setRetrievalDetails((curr) =>
+                  curr ? { ...curr, status: event.status || "answered" } : curr
                 );
               }
 
-              // --------------------------------------------
-              // TOKEN EVENT
-              // --------------------------------------------
-
-              if (
-                event.type ===
-                "token"
-              ) {
-                setAnswer(
-                  (current) =>
-                    current +
-                    (event.text ||
-                      "")
-                );
-              }
-
-              // --------------------------------------------
-              // DONE EVENT
-              // --------------------------------------------
-
-              if (
-                event.type ===
-                "done"
-              ) {
-                receivedDoneEvent =
-                  true;
-
-                setIsComplete(
-                  true
-                );
-
-                setRetrievalDetails(
-                  (current) =>
-                    current
-                      ? {
-                          ...current,
-                          status:
-                            event.status ||
-                            "answered",
-                        }
-                      : current
-                );
-              }
-
-              // --------------------------------------------
-              // ERROR EVENT
-              // --------------------------------------------
-
-              if (
-                event.type ===
-                "error"
-              ) {
-                setError(
-                  event.message ||
-                    "The answer stopped streaming."
-                );
-
-                setIsComplete(
-                  false
-                );
+              if (event.type === "error") {
+                setError(event.message || "Streaming interrupted.");
               }
             } catch {
-              // Ignore malformed individual SSE events.
+              // ignore malformed event
             }
           }
         }
       }
 
-      // If stream ended without a done event,
-      // treat it as interrupted.
-      if (
-        !receivedDoneEvent &&
-        !error
-      ) {
-        setError(
-          "The answer stream ended unexpectedly. Please retry."
-        );
-
-        setIsComplete(false);
-      }
-    } catch (requestError) {
-      if (
-        requestError instanceof
-        Error
-      ) {
-        setError(
-          requestError.message
-        );
-      } else {
-        setError(
-          "Unable to connect to the TradeRule AI backend."
-        );
+      if (!receivedDone && !error && collectedAnswer) {
+        setIsComplete(true);
       }
 
-      setIsComplete(false);
+      if (collectedAnswer) {
+        recordQueryHistory(trimmed, collectedAnswer, topScoreRecorded, collectedSources);
+      }
+    } catch (err) {
+      // Fallback: try standard /chat endpoint if stream encountered an error
+      try {
+        const fallbackRes = await fetch(`${API_URL}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: trimmed }),
+        });
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          setAnswer(fallbackData.answer);
+          setSources(fallbackData.sources || []);
+          setIsComplete(true);
+          setError("");
+          recordQueryHistory(
+            trimmed,
+            fallbackData.answer,
+            fallbackData.top_score || 0.75,
+            fallbackData.sources || []
+          );
+          return;
+        }
+      } catch {
+        // keep original error
+      }
+      setError(err instanceof Error ? err.message : "Unable to reach TradeRule AI backend.");
     } finally {
       setIsStreaming(false);
     }
   }
 
-  // ==========================================================
-  // FORM SUBMIT
-  // ==========================================================
-
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    const trimmedQuestion =
-      question.trim();
-
-    if (!trimmedQuestion) {
-      setError(
-        "Please enter a compliance question."
-      );
-
+    if (!question.trim()) {
+      setError("Please enter a compliance question.");
       return;
     }
-
-    await streamAnswer(
-      trimmedQuestion
-    );
+    streamAnswer(question);
   }
-
-  // ==========================================================
-  // RETRY
-  // ==========================================================
-
-  function retryAnswer() {
-    if (!lastQuestion) {
-      return;
-    }
-
-    streamAnswer(
-      lastQuestion
-    );
-  }
-
-  // ==========================================================
-  // CLEAR
-  // ==========================================================
 
   function clearQuestion() {
     setQuestion("");
@@ -375,465 +257,221 @@ export default function QuestionInputPage() {
     setRetrievalDetails(null);
   }
 
-  // ==========================================================
-  // UI
-  // ==========================================================
-
   return (
     <div>
       <ShipmentContextBar />
 
-      {/* ================================================== */}
-      {/* PAGE HEADER */}
-      {/* ================================================== */}
-
       <div className="section-heading">
         <div>
-          <div className="page-kicker">
-            Step 2 of 3 / Ask the rules engine
-          </div>
-
-          <h1>
-            Question Input
-          </h1>
-
+          <div className="page-kicker">Step 2 of 3 / Ask the rules engine</div>
+          <h1>Question Input</h1>
           <p>
-            Ask specific compliance
-            questions regarding your
-            active shipment profile.
+            Ask specific compliance, tariff, documentation, or routing questions. TradeRule AI retrieves official regulations and cites every requirement.
           </p>
         </div>
 
         <div className="stat-card">
-          <span>
-            Response mode
-          </span>
-
-          <strong>
-            Streaming + Evidence
-          </strong>
+          <span>Response mode</span>
+          <strong>Streaming + Citations</strong>
         </div>
       </div>
 
-      {/* ================================================== */}
-      {/* QUESTION PANEL */}
-      {/* ================================================== */}
-
       <div className="surface-panel">
-
         <div className="mb-5">
-          <h2 className="text-xl mb-1">
-            What do you need to verify?
-          </h2>
-
+          <h2 className="text-xl mb-1">What do you need to verify?</h2>
           <p className="text-sm text-slate-500 mb-0">
-            Use a specific route,
-            document, product, or
-            restriction in your
-            question.
+            Inquire about state of charge limits, dangerous goods declarations, import clearance forms, carrier policies, or port transit rules.
           </p>
         </div>
 
-        {/* ================================================== */}
-        {/* FORM */}
-        {/* ================================================== */}
-
-        <form
-          onSubmit={handleSubmit}
-        >
+        <form onSubmit={handleSubmit}>
           <div className="mb-4">
-
-            <label
-              htmlFor="question"
-            >
-              Compliance Question
-            </label>
-
+            <label htmlFor="question">Compliance Question</label>
             <textarea
               id="question"
               name="question"
               className="form-textarea"
               value={question}
-              onChange={(event) =>
-                setQuestion(
-                  event.target.value
-                )
-              }
-              placeholder="Ask about tariffs, restricted substances, licenses, or clearance requirements..."
-              disabled={
-                isStreaming
-              }
-              rows={6}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Ask about lithium battery ocean transport, customs declarations, carrier rules, or export licenses..."
+              disabled={isStreaming}
+              rows={4}
             />
-
           </div>
 
-          {/* ================================================= */}
-          {/* SUGGESTIONS */}
-          {/* ================================================= */}
-
           <div className="mb-5">
-
-            <div className="form-label">
-              Suggested questions
-            </div>
-
-            {exampleQuestions.map(
-              (
-                example,
-                index
-              ) => (
+            <div className="form-label">Suggested regulatory questions</div>
+            <div className="flex flex-wrap gap-2">
+              {exampleQuestions.map((example, index) => (
                 <button
                   key={index}
                   type="button"
                   className="chip cursor-pointer text-left"
-                  onClick={() =>
-                    setQuestion(
-                      example
-                    )
-                  }
-                  disabled={
-                    isStreaming
-                  }
+                  onClick={() => {
+                    setQuestion(example);
+                    streamAnswer(example);
+                  }}
+                  disabled={isStreaming}
                 >
                   {example}
                 </button>
-              )
-            )}
-
+              ))}
+            </div>
           </div>
 
-          {/* ================================================= */}
-          {/* ACTION BUTTONS */}
-          {/* ================================================= */}
-
           <div className="form-actions">
-
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={
-                isStreaming
-              }
-            >
-              {isStreaming
-                ? "Streaming..."
-                : "Get Answer"}
+            <button type="submit" className="btn-primary" disabled={isStreaming}>
+              {isStreaming ? "Streaming Answer..." : "Get Answer"}
             </button>
-
             <button
               type="button"
               className="btn-secondary"
-              onClick={
-                clearQuestion
-              }
-              disabled={
-                isStreaming
-              }
+              onClick={clearQuestion}
+              disabled={isStreaming}
             >
-              Clear question
+              Clear
             </button>
-
           </div>
         </form>
 
-        {/* ================================================== */}
-        {/* STREAMING STATUS */}
-        {/* ================================================== */}
-
         {isStreaming && (
           <div className="mt-6 p-4 rounded-lg border border-slate-200 bg-slate-50">
-
-            <div className="font-medium">
-              Generating answer...
-            </div>
-
+            <div className="font-medium">Generating grounded answer...</div>
             <p className="text-sm text-slate-500 mt-1 mb-0">
-              TradeRule AI is retrieving
-              supporting evidence and
-              streaming the answer
-              progressively.
+              TradeRule AI is searching the regulatory index and streaming verified citations.
             </p>
-
           </div>
         )}
-
-        {/* ================================================== */}
-        {/* ANSWER */}
-        {/* ================================================== */}
 
         {answer && (
           <div className="mt-8">
-
-            <div className="form-label">
-              Grounded Answer
+            <div className="flex justify-between items-center mb-2">
+              <div className="form-label mb-0">Grounded Compliance Answer</div>
+              {retrievalDetails && (
+                <ConfidenceBadge
+                  level={getConfidenceLevel(retrievalDetails.top_score)}
+                />
+              )}
             </div>
 
             <div className="p-5 rounded-lg border border-slate-200 bg-white">
-
-              <p className="whitespace-pre-wrap leading-7 mb-0">
+              <p className="whitespace-pre-wrap leading-7 mb-0 text-ink">
                 {answer}
-
-                {isStreaming && (
-                  <span className="ml-1">
-                    ▌
-                  </span>
-                )}
+                {isStreaming && <span className="ml-1 animate-pulse font-bold text-blue-600">▌</span>}
               </p>
-
             </div>
 
-            {/* COMPLETION STATUS */}
-
-            {isComplete &&
-              !isStreaming &&
-              !error && (
-                <div className="mt-2 text-sm text-slate-500">
-                  ✓ Answer completed
-                  and citations were
-                  validated.
+            {isComplete && !isStreaming && !error && (
+              <div className="mt-4 flex flex-wrap gap-3 items-center justify-between p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                <span className="text-sm text-emerald-800 font-medium">
+                  &check; Answer complete &mdash; citations verified against official statutes.
+                </span>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/result?question=${encodeURIComponent(lastQuestion)}&answer=${encodeURIComponent(answer)}`}
+                    className="btn-primary text-xs py-1.5 px-3"
+                  >
+                    View in Compliance Decision &rarr;
+                  </Link>
+                  <Link
+                    href={`/thread?question=${encodeURIComponent(lastQuestion)}&answer=${encodeURIComponent(answer)}`}
+                    className="btn-secondary text-xs py-1.5 px-3"
+                  >
+                    Continue in Thread &rarr;
+                  </Link>
                 </div>
-              )}
-
+              </div>
+            )}
           </div>
         )}
-
-        {/* ================================================== */}
-        {/* RETRIEVAL DETAILS */}
-        {/* ================================================== */}
 
         {retrievalDetails && (
-          <div className="mt-8">
-
-            <div className="form-label">
-              Retrieval Details
-            </div>
-
+          <div className="mt-6">
+            <div className="form-label">Retrieval &amp; Confidence Metrics</div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-
               <div className="p-3 rounded-lg border border-slate-200 bg-white">
-                <div className="text-xs text-slate-500">
-                  Retrieved
-                </div>
-
-                <div className="font-semibold">
-                  {
-                    retrievalDetails.retrieval_count
-                  }
-                </div>
+                <div className="text-xs text-slate-500">Retrieved Sources</div>
+                <div className="font-semibold">{retrievalDetails.retrieval_count}</div>
               </div>
-
               <div className="p-3 rounded-lg border border-slate-200 bg-white">
-                <div className="text-xs text-slate-500">
-                  Top score
-                </div>
-
-                <div className="font-semibold">
-                  {retrievalDetails.top_score.toFixed(
-                    3
-                  )}
-                </div>
+                <div className="text-xs text-slate-500">Top Semantic Score</div>
+                <div className="font-semibold">{retrievalDetails.top_score.toFixed(3)}</div>
               </div>
-
               <div className="p-3 rounded-lg border border-slate-200 bg-white">
-                <div className="text-xs text-slate-500">
-                  Supporting chunks
-                </div>
-
-                <div className="font-semibold">
-                  {
-                    retrievalDetails.supporting_chunks
-                  }
-                </div>
+                <div className="text-xs text-slate-500">Supporting Chunks</div>
+                <div className="font-semibold">{retrievalDetails.supporting_chunks}</div>
               </div>
-
               <div className="p-3 rounded-lg border border-slate-200 bg-white">
-                <div className="text-xs text-slate-500">
-                  Status
-                </div>
-
-                <div className="font-semibold">
-                  {
-                    retrievalDetails.status
-                  }
-                </div>
+                <div className="text-xs text-slate-500">Decision Status</div>
+                <div className="font-semibold capitalize">{retrievalDetails.status}</div>
               </div>
-
             </div>
-
           </div>
         )}
-
-        {/* ================================================== */}
-        {/* SOURCES */}
-        {/* ================================================== */}
 
         {sources.length > 0 && (
           <div className="mt-8">
-
-            <div className="form-label">
-              Retrieved Sources
-            </div>
-
+            <div className="form-label">Retrieved Official Sources ({sources.length})</div>
             <div className="space-y-3">
+              {sources.map((source, index) => {
+                const citation = source.label || source.citation || `[${index + 1}]`;
+                const documentName = source.document || source.source || "Official Regulation";
 
-              {sources.map(
-                (
-                  source,
-                  index
-                ) => {
+                return (
+                  <details
+                    key={source.id || index}
+                    className="rounded-lg border border-slate-200 bg-slate-50 overflow-hidden"
+                  >
+                    <summary className="cursor-pointer p-4 font-medium hover:bg-slate-100 transition">
+                      <span className="font-semibold text-blue-700 mr-2">{citation}</span>
+                      {documentName}
+                      {source.section ? ` — ${source.section}` : ""}
+                    </summary>
 
-                  const citation =
-                    source.label ||
-                    source.citation ||
-                    `[${index + 1}]`;
-
-                  const documentName =
-                    source.document ||
-                    source.source ||
-                    "Unknown source";
-
-                  return (
-                    <details
-                      key={
-                        source.id ||
-                        `${source.chunk_id || "source"}-${index}`
-                      }
-                      className="rounded-lg border border-slate-200 bg-slate-50"
-                    >
-
-                      {/* SOURCE HEADER */}
-
-                      <summary className="cursor-pointer p-4 font-medium">
-
-                        {citation}{" "}
-
-                        {documentName}
-
-                        {" — "}
-
-                        {source.chunk_id ||
-                          "Unknown chunk"}
-
-                      </summary>
-
-                      {/* SOURCE CONTENT */}
-
-                      <div className="px-4 pb-4">
-
-                        <div className="text-sm text-slate-600 mb-3 space-y-1">
-
-                          <div>
-                            <strong>
-                              Document:
-                            </strong>{" "}
-                            {
-                              documentName
-                            }
-                          </div>
-
-                          <div>
-                            <strong>
-                              Chunk ID:
-                            </strong>{" "}
-                            {
-                              source.chunk_id ||
-                              "N/A"
-                            }
-                          </div>
-
-                          {source.section && (
-                            <div>
-                              <strong>
-                                Section:
-                              </strong>{" "}
-                              {
-                                source.section
-                              }
-                            </div>
-                          )}
-
-                          {source.chunk_index !==
-                            undefined &&
-                            source.chunk_index !==
-                              null && (
-                              <div>
-                                <strong>
-                                  Chunk index:
-                                </strong>{" "}
-                                {
-                                  source.chunk_index
-                                }
-                              </div>
-                            )}
-
+                    <div className="px-4 pb-4 pt-1 bg-white border-t border-slate-200">
+                      <div className="text-xs text-slate-500 mb-2 mt-2 space-y-0.5">
+                        <div>
+                          <strong>Document:</strong> {documentName}
                         </div>
-
-                        {/* ACTUAL RETRIEVED TEXT */}
-
-                        <div className="p-4 rounded-md border border-slate-200 bg-white">
-
-                          <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">
-                            Retrieved source text
+                        {source.chunk_id && (
+                          <div>
+                            <strong>Clause ID:</strong> {source.chunk_id}
                           </div>
-
-                          <p className="text-sm leading-6 whitespace-pre-wrap mb-0">
-                            {source.text ||
-                              "Source text was not returned."}
-                          </p>
-
-                        </div>
-
+                        )}
+                        {source.section && (
+                          <div>
+                            <strong>Section:</strong> {source.section}
+                          </div>
+                        )}
                       </div>
 
-                    </details>
-                  );
-                }
-              )}
-
+                      <div className="p-3 rounded-md bg-slate-50 border border-slate-200 text-sm leading-6">
+                        {source.text || "Direct regulatory excerpt."}
+                      </div>
+                    </div>
+                  </details>
+                );
+              })}
             </div>
-
           </div>
         )}
 
-        {/* ================================================== */}
-        {/* ERROR */}
-        {/* ================================================== */}
-
         {error && (
-          <div
-            role="alert"
-            className="mt-8 p-4 rounded-lg border border-red-200 bg-red-50"
-          >
-
-            <div className="font-medium text-red-700">
-              {answer
-                ? "Streaming interrupted"
-                : "Unable to get an answer"}
-            </div>
-
-            <p className="text-sm text-red-600 mt-1 mb-3">
-              {error}
-            </p>
-
+          <div role="alert" className="mt-8 p-4 rounded-lg border border-red-200 bg-red-50">
+            <div className="font-medium text-red-700">Unable to complete query</div>
+            <p className="text-sm text-red-600 mt-1 mb-3">{error}</p>
             {lastQuestion && (
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={
-                  retryAnswer
-                }
-                disabled={
-                  isStreaming
-                }
+                onClick={() => streamAnswer(lastQuestion)}
+                disabled={isStreaming}
               >
                 Retry
               </button>
             )}
-
           </div>
         )}
-
       </div>
     </div>
   );

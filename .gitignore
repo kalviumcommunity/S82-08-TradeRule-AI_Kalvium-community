@@ -75,3 +75,50 @@ htmlcov/
 .DS_Store
 Thumbs.db
 backend/src/embedding_store.json
+
+# =========================
+# Environment
+# =========================
+.env
+.env.local
+.env.production
+.env.development
+
+# =========================
+# Python
+# =========================
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# =========================
+# Node
+# =========================
+node_modules/
+.next/
+out/
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# Local uploaded files
+# =========================
+uploads/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/

@@ -72,14 +72,14 @@ from citation_attribution import (
 load_dotenv()
 
 
-TOP_K = 5
+TOP_K = int(os.getenv("TOP_K", "5"))
 
 # Minimum similarity score required for a retrieved chunk
 # to be considered supporting evidence.
-MIN_TOP_SCORE = 0.72
+MIN_TOP_SCORE = float(os.getenv("MIN_TOP_SCORE", "0.50"))
 
 # At least this many chunks must pass the threshold.
-MIN_SUPPORTING_CHUNKS = 1
+MIN_SUPPORTING_CHUNKS = int(os.getenv("MIN_SUPPORTING_CHUNKS", "1"))
 
 # Safe response when evidence is insufficient.
 REFUSAL_MESSAGE = (

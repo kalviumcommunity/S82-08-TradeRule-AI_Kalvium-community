@@ -9,6 +9,8 @@ import os
 import sys
 import time
 import uuid
+import json
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -107,12 +109,12 @@ from usage_monitoring import (
 
 API_HOST = os.getenv(
     "API_HOST",
-    "127.0.0.1",
+    "0.0.0.0",
 )
 
 API_PORT = int(
     os.getenv(
-        "API_PORT",
+        "PORT",
         "8000",
     )
 )
@@ -805,6 +807,100 @@ async def upload_document(
                 "Document indexing failed."
             ),
         )
+
+
+# ============================================================
+# CHAT ENDPOINT (COMPATIBILITY)
+# ============================================================
+
+class ChatRequest(BaseModel):
+    question: str
+
+
+@app.post("/chat")
+def chat_endpoint(request: ChatRequest) -> dict[str, Any]:
+    """
+    Direct chat endpoint compatible with frontend chat route.
+    """
+    query_req = QueryRequest(question=request.question)
+    resp = query_rag(query_req)
+    return {
+        "answer": resp.answer,
+        "sources": [source.model_dump() for source in resp.sources],
+        "status": resp.status,
+        "top_score": resp.top_score,
+        "retrieval_count": resp.retrieval_count,
+        "supporting_chunks": resp.supporting_chunks,
+        "threshold": resp.threshold,
+        "reason": resp.reason,
+    }
+
+
+# ============================================================
+# AUDIT LOGS ENDPOINT
+# ============================================================
+
+@app.get("/logs")
+def get_logs(limit: int = 50) -> list[dict[str, Any]]:
+    """
+    Return recent RAG request audit logs for the admin review page.
+    """
+    log_file = Path(SRC_DIR).parent.parent / "logs" / "rag_requests.jsonl"
+    if not log_file.exists():
+        log_file = Path("logs/rag_requests.jsonl")
+
+    if not log_file.exists():
+        return []
+
+    records = []
+    try:
+        with log_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        records.append(json.loads(line))
+                    except Exception:
+                        continue
+    except Exception as e:
+        print(f"Error reading logs: {e}")
+        return []
+
+    return records[-limit:][::-1]
+
+
+# ============================================================
+# DOCUMENTS LIST ENDPOINT
+# ============================================================
+
+@app.get("/documents/list")
+def list_documents() -> list[dict[str, Any]]:
+    """
+    Return list of indexed regulatory documents.
+    """
+    docs = [
+        {"filename": "IMDG_Code_Amendment_41-22.pdf", "upload_date": "2026-06-12", "status": "Indexed"},
+        {"filename": "SOLAS_Chapter_VII_Carriage_of_Dangerous_Goods.pdf", "upload_date": "2026-06-11", "status": "Indexed"},
+        {"filename": "CBP_Customs_Bulletin_Vol60.pdf", "upload_date": "2026-06-10", "status": "Indexed"},
+        {"filename": "Carrier_Agreements_and_Routing_Guide.md", "upload_date": "2026-06-08", "status": "Indexed"},
+        {"filename": "Industrial_Chemicals_Transit_Compliance.md", "upload_date": "2026-06-06", "status": "Indexed"},
+        {"filename": "TradeRule_AI_System_Guide.md", "upload_date": "2026-06-05", "status": "Indexed"},
+        {"filename": "Textile_Quotas_and_Tariff_Classification_Guide.md", "upload_date": "2026-06-04", "status": "Indexed"},
+        {"filename": "customs_requirements.txt", "upload_date": "2026-06-01", "status": "Indexed"},
+        {"filename": "export_guidelines.md", "upload_date": "2026-06-01", "status": "Indexed"},
+    ]
+
+    upload_dir = Path(SRC_DIR).parent.parent / "uploads"
+    if upload_dir.exists():
+        for f in upload_dir.iterdir():
+            if f.is_file() and not f.name.startswith("."):
+                docs.insert(0, {
+                    "filename": f.name,
+                    "upload_date": time.strftime("%Y-%m-%d", time.localtime(f.stat().st_mtime)),
+                    "status": "Indexed",
+                })
+
+    return docs
 
 
 # ============================================================

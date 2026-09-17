@@ -38,6 +38,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       answer: payload.answer ?? "No answer was returned by the backend.",
+      sources: payload.sources ?? [],
+      status: payload.status ?? "answered",
+      top_score: payload.top_score ?? null,
+      retrieval_count: payload.retrieval_count ?? null,
+      supporting_chunks: payload.supporting_chunks ?? null,
+      reason: payload.reason ?? null,
       usage: payload.usage ?? null,
     });
   } catch (error) {
