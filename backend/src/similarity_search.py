@@ -10,7 +10,10 @@ load_dotenv()
 
 QDRANT_URL = os.getenv(
     "QDRANT_URL",
-    "http://localhost:6333",
+)
+
+QDRANT_API_KEY = os.getenv(
+    "QDRANT_API_KEY",
 )
 
 COLLECTION_NAME = "traderule_rag_chunks"
@@ -80,8 +83,16 @@ def qdrant_search(
         "with_vector": False,
     }
 
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    if QDRANT_API_KEY:
+        headers["api-key"] = QDRANT_API_KEY
+
     response = requests.post(
         url,
+        headers=headers,
         json=payload,
         timeout=30,
     )
