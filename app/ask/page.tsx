@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import ShipmentContextBar, { getStoredShipment } from "@/components/ShipmentContextBar";
 import ConfidenceBadge from "@/components/ConfidenceBadge";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_RAG_API_URL ||
-  "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_RAG_API_URL || "http://127.0.0.1:8000";
 
 type Source = {
   id?: string;
@@ -36,13 +37,16 @@ type StreamEvent = {
 
 export default function QuestionInputPage() {
   return (
-    <Suspense fallback={<div>Loading Q&amp;A...</div>}>
-      <QuestionInputContent />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense fallback={<div>Loading Q&amp;A...</div>}>
+        <QuestionInputContent />
+      </Suspense>
+    </ProtectedRoute>
   );
 }
 
 function QuestionInputContent() {
+  const { token } = useAuth();
   const searchParams = useSearchParams();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -122,9 +126,17 @@ function QuestionInputContent() {
     let topScoreRecorded = 0.75;
 
     try {
+      const streamHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        streamHeaders["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${API_URL}/query/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: streamHeaders,
+        credentials: "include",
         body: JSON.stringify({ question: trimmed }),
       });
 
@@ -210,9 +222,17 @@ function QuestionInputContent() {
     } catch (err) {
       // Fallback: try standard /chat endpoint if stream encountered an error
       try {
+        const fallbackHeaders: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (token) {
+          fallbackHeaders["Authorization"] = `Bearer ${token}`;
+        }
+
         const fallbackRes = await fetch(`${API_URL}/chat`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: fallbackHeaders,
+          credentials: "include",
           body: JSON.stringify({ question: trimmed }),
         });
         if (fallbackRes.ok) {

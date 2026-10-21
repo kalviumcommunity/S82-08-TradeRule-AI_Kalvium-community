@@ -48,6 +48,9 @@ from fastapi import (
     File,
     HTTPException,
     UploadFile,
+    Depends,
+    Response,
+    status,
 )
 
 from fastapi.middleware.cors import (
@@ -62,6 +65,34 @@ from pydantic import (
     BaseModel,
     Field,
 )
+from sqlalchemy.orm import Session
+
+try:
+    from .db import init_db, get_db, User, get_user_by_email, create_user
+    from .auth import (
+        get_current_user,
+        require_admin,
+        hash_password,
+        verify_password,
+        create_access_token,
+        set_auth_cookie,
+        clear_auth_cookie,
+        validate_email_address,
+        validate_password_strength,
+    )
+except ImportError:
+    from db import init_db, get_db, User, get_user_by_email, create_user
+    from auth import (
+        get_current_user,
+        require_admin,
+        hash_password,
+        verify_password,
+        create_access_token,
+        set_auth_cookie,
+        clear_auth_cookie,
+        validate_email_address,
+        validate_password_strength,
+    )
 
 
 # ============================================================
@@ -220,6 +251,35 @@ class DocumentUploadResponse(BaseModel):
 
 
 # ============================================================
+# AUTHENTICATION MODELS
+# ============================================================
+
+class RegisterRequest(BaseModel):
+    email: str = Field(..., description="User email address")
+    password: str = Field(..., min_length=8, description="User password (min 8 characters)")
+    full_name: str = Field(default="", description="User full name")
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(..., description="User email address")
+    password: str = Field(..., description="User password")
+
+
+class AuthUserResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    role: str
+    created_at: str | None = None
+
+
+class AuthResponse(BaseModel):
+    status: str = "ok"
+    user: AuthUserResponse
+    token: str
+
+
+# ============================================================
 # HEALTH RESPONSE
 # ============================================================
 
@@ -287,9 +347,10 @@ async def lifespan(
     app: FastAPI,
 ):
     """
-    Initialize RAG clients when the API starts.
+    Initialize DB schema and RAG clients when the API starts.
     """
 
+    init_db()
     initialize_clients()
 
     yield
@@ -314,12 +375,20 @@ app = FastAPI(
 # CORS
 # ============================================================
 
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+custom_origins = os.getenv("ALLOWED_ORIGINS")
+if custom_origins:
+    for origin in custom_origins.split(","):
+        origin = origin.strip()
+        if origin and origin not in allowed_origins:
+            allowed_origins.append(origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -347,6 +416,116 @@ def health_check() -> HealthResponse:
 
 
 # ============================================================
+# AUTHENTICATION ENDPOINTS
+# ============================================================
+
+@app.post(
+    "/auth/register",
+    response_model=AuthResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register(
+    payload: RegisterRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> AuthResponse:
+    """
+    Register a new user account.
+    Role is strictly enforced as 'user' for public registration.
+    """
+    email = validate_email_address(payload.email)
+    validate_password_strength(payload.password)
+
+    existing = get_user_by_email(db, email)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email address already exists.",
+        )
+
+    pwd_hash = hash_password(payload.password)
+    user = create_user(
+        db=db,
+        email=email,
+        password_hash=pwd_hash,
+        full_name=payload.full_name,
+        role="user",
+    )
+
+    token = create_access_token(user)
+    set_auth_cookie(response, token)
+
+    return AuthResponse(
+        status="ok",
+        user=AuthUserResponse(**user.to_dict()),
+        token=token,
+    )
+
+
+@app.post(
+    "/auth/login",
+    response_model=AuthResponse,
+)
+def login(
+    payload: LoginRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> AuthResponse:
+    """
+    Authenticate user and create session cookie + token.
+    """
+    email = payload.email.strip().lower()
+    user = get_user_by_email(db, email)
+
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is inactive.",
+        )
+
+    token = create_access_token(user)
+    set_auth_cookie(response, token)
+
+    return AuthResponse(
+        status="ok",
+        user=AuthUserResponse(**user.to_dict()),
+        token=token,
+    )
+
+
+@app.get(
+    "/auth/me",
+    response_model=AuthUserResponse,
+)
+def get_me(
+    current_user: User = Depends(get_current_user),
+) -> AuthUserResponse:
+    """
+    Get details of currently authenticated user.
+    """
+    return AuthUserResponse(**current_user.to_dict())
+
+
+@app.post(
+    "/auth/logout",
+)
+def logout(
+    response: Response,
+) -> dict[str, str]:
+    """
+    Clear session cookie and log out.
+    """
+    clear_auth_cookie(response)
+    return {"status": "ok", "message": "Logged out successfully."}
+
+
+# ============================================================
 # NORMAL QUERY
 # ============================================================
 
@@ -356,6 +535,7 @@ def health_check() -> HealthResponse:
 )
 def query_rag(
     request: QueryRequest,
+    current_user: User = Depends(get_current_user),
 ) -> QueryResponse:
     """
     Answer a compliance question using
@@ -699,6 +879,7 @@ def query_rag(
 )
 async def query_stream(
     request: QueryRequest,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Stream a grounded RAG answer using
@@ -758,6 +939,7 @@ async def query_stream(
 )
 async def upload_document(
     file: UploadFile = File(...),
+    admin_user: User = Depends(require_admin),
 ) -> DocumentUploadResponse:
     """
     Upload and index a document.
@@ -818,12 +1000,15 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/chat")
-def chat_endpoint(request: ChatRequest) -> dict[str, Any]:
+def chat_endpoint(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
     """
     Direct chat endpoint compatible with frontend chat route.
     """
     query_req = QueryRequest(question=request.question)
-    resp = query_rag(query_req)
+    resp = query_rag(query_req, current_user=current_user)
     return {
         "answer": resp.answer,
         "sources": [source.model_dump() for source in resp.sources],
@@ -841,7 +1026,10 @@ def chat_endpoint(request: ChatRequest) -> dict[str, Any]:
 # ============================================================
 
 @app.get("/logs")
-def get_logs(limit: int = 50) -> list[dict[str, Any]]:
+def get_logs(
+    limit: int = 50,
+    admin_user: User = Depends(require_admin),
+) -> list[dict[str, Any]]:
     """
     Return recent RAG request audit logs for the admin review page.
     """
@@ -874,7 +1062,9 @@ def get_logs(limit: int = 50) -> list[dict[str, Any]]:
 # ============================================================
 
 @app.get("/documents/list")
-def list_documents() -> list[dict[str, Any]]:
+def list_documents(
+    admin_user: User = Depends(require_admin),
+) -> list[dict[str, Any]]:
     """
     Return list of indexed regulatory documents.
     """
