@@ -34,10 +34,10 @@ function LoginForm() {
   const setDemoCredentials = (role: "admin" | "user") => {
     if (role === "admin") {
       setEmail("admin@traderule.ai");
-      setPassword("AdminPass123!");
+      setPassword("admin123");
     } else {
       setEmail("user1@example.com");
-      setPassword("UserPassword123!");
+      setPassword("user@123");
     }
   };
 
