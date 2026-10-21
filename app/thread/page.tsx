@@ -8,6 +8,9 @@ import CitationChip from "@/components/CitationChip";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/context/AuthContext";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_RAG_API_URL || "http://127.0.0.1:8000";
+
 interface ThreadItem {
   id: string;
   question: string;
@@ -147,7 +150,7 @@ function ThreadContent() {
       if (token) {
         authHeaders["Authorization"] = `Bearer ${token}`;
       }
-      const res = await fetch("/api/chat", {
+      const res = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
         headers: authHeaders,
         credentials: "include",

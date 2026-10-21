@@ -10,6 +10,9 @@ import CitationChip from "@/components/CitationChip";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/context/AuthContext";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_RAG_API_URL || "http://127.0.0.1:8000";
+
 export default function ComplianceAnswerPage() {
   return (
     <ProtectedRoute>
@@ -21,6 +24,7 @@ export default function ComplianceAnswerPage() {
 }
 
 function ComplianceResultContent() {
+  const { token } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawAnswer = searchParams.get("answer") ?? "";
@@ -47,9 +51,14 @@ function ComplianceResultContent() {
     } else {
       // Fetch dynamic answer if not provided in URL
       setLoading(true);
-      fetch("/api/chat", {
+      const authHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        authHeaders["Authorization"] = `Bearer ${token}`;
+      }
+      fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
+        credentials: "include",
         body: JSON.stringify({ question: defaultQ }),
       })
         .then((res) => res.json())
