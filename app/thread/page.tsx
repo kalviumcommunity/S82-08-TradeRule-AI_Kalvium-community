@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import ShipmentContextBar from "@/components/ShipmentContextBar";
 import ConfidenceBadge from "@/components/ConfidenceBadge";
 import CitationChip from "@/components/CitationChip";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
 
 interface ThreadItem {
   id: string;
@@ -48,13 +50,16 @@ const INITIAL_ITEMS: ThreadItem[] = [
 
 export default function ThreadPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center">Loading conversation thread...</div>}>
-      <ThreadContent />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense fallback={<div className="p-8 text-center">Loading conversation thread...</div>}>
+        <ThreadContent />
+      </Suspense>
+    </ProtectedRoute>
   );
 }
 
 function ThreadContent() {
+  const { token } = useAuth();
   const searchParams = useSearchParams();
   const [items, setItems] = useState<ThreadItem[]>(INITIAL_ITEMS);
   const [expandedId, setExpandedId] = useState<string | null>("1");
@@ -138,9 +143,14 @@ function ThreadContent() {
     setExpandedId(tempId);
 
     try {
+      const authHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        authHeaders["Authorization"] = `Bearer ${token}`;
+      }
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
+        credentials: "include",
         body: JSON.stringify({ question: trimmed }),
       });
 

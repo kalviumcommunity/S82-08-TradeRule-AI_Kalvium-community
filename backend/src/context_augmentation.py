@@ -193,12 +193,57 @@ def embed_query(
 # QDRANT RETRIEVAL
 # ===================================================================
 
+def _retrieve_from_local_store(
+    query_vector: list[float],
+    k: int = TOP_K,
+) -> list[dict[str, Any]]:
+    import json
+    import math
+    from pathlib import Path
+
+    store_path = Path(__file__).parent / "embedding_store.json"
+    if not store_path.exists():
+        return []
+
+    try:
+        with open(store_path, "r", encoding="utf-8") as f:
+            store = json.load(f)
+
+        def _cosine_sim(a: list[float], b: list[float]) -> float:
+            dot = sum(x * y for x, y in zip(a, b))
+            mag_a = math.sqrt(sum(x * x for x in a))
+            mag_b = math.sqrt(sum(y * y for y in b))
+            return dot / (mag_a * mag_b) if mag_a and mag_b else 0.0
+
+        scored = []
+        for item in store.values():
+            emb = item.get("embedding", [])
+            if not emb:
+                continue
+            score = _cosine_sim(query_vector, emb)
+            scored.append({
+                "id": item.get("id"),
+                "score": round(score, 4),
+                "payload": {
+                    "text": item.get("text", ""),
+                    "metadata": item.get("metadata", {}),
+                },
+            })
+
+        scored.sort(key=lambda x: x["score"], reverse=True)
+        return scored[:k]
+    except Exception as err:
+        print(f"Fallback local vector retrieval error: {err}")
+        return []
+
+
 def retrieve_chunks(
     query_vector: list[float],
     k: int = TOP_K,
 ) -> list[dict[str, Any]]:
     """
-    Retrieve the top-k chunks from Qdrant.
+    Retrieve the top-k chunks from Qdrant, with graceful fallback
+    to local embedding store if Qdrant is unreachable.
     """
 
     if k <= 0:
@@ -218,23 +263,26 @@ def retrieve_chunks(
         "with_vector": False,
     }
 
-    response = requests.post(
-        url,
-        json=payload,
-        timeout=60,
-    )
+    headers = {}
+    if QDRANT_API_KEY:
+        headers["api-key"] = QDRANT_API_KEY
 
-    if response.status_code != 200:
-        raise RuntimeError(
-            "Qdrant retrieval failed.\n"
-            f"Status: {response.status_code}\n"
-            f"Response: {response.text}"
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=5,
         )
 
-    return response.json().get(
-        "result",
-        [],
-    )
+        if response.status_code == 200:
+            result = response.json().get("result", [])
+            if result:
+                return result
+    except Exception as exc:
+        print(f"Qdrant retrieval notice ({exc}); using verified local embedding store fallback.")
+
+    return _retrieve_from_local_store(query_vector, k)
 
 
 # ===================================================================

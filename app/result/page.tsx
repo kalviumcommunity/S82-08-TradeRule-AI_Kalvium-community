@@ -7,11 +7,16 @@ import ShipmentContextBar, { getStoredShipment, ShipmentProfile } from "@/compon
 import ConfidenceBadge from "@/components/ConfidenceBadge";
 import CitationChip from "@/components/CitationChip";
 
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
+
 export default function ComplianceAnswerPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center">Loading compliance result...</div>}>
-      <ComplianceResultContent />
-    </Suspense>
+    <ProtectedRoute>
+      <Suspense fallback={<div className="p-8 text-center">Loading compliance result...</div>}>
+        <ComplianceResultContent />
+      </Suspense>
+    </ProtectedRoute>
   );
 }
 

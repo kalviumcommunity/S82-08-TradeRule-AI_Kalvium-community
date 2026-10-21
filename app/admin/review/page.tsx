@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import ConfidenceBadge from "@/components/ConfidenceBadge";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_RAG_API_URL || "http://127.0.0.1:8000";
@@ -54,18 +56,22 @@ const DEFAULT_ROWS: AuditRow[] = [
 ];
 
 export default function AdminReviewPage() {
+  const { token } = useAuth();
   const [filter, setFilter] = useState("all");
   const [rows, setRows] = useState<AuditRow[]>(DEFAULT_ROWS);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchLogs();
-  }, []);
-
-  async function fetchLogs() {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/logs?limit=50`);
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${API_BASE_URL}/logs?limit=50`, {
+        headers,
+        credentials: "include",
+      });
       if (res.ok) {
         const rawLogs = await res.json();
         if (Array.isArray(rawLogs) && rawLogs.length > 0) {
@@ -120,7 +126,11 @@ export default function AdminReviewPage() {
         // ignore
       }
     }
-  }
+  }, [token]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   const filteredRows = rows.filter(
     (r) => filter === "all" || r.confidence === filter
@@ -139,7 +149,8 @@ export default function AdminReviewPage() {
   }
 
   return (
-    <div>
+    <ProtectedRoute requireAdmin={true}>
+      <div>
       <div className="section-heading">
         <div>
           <div className="page-kicker">Administration / Audit log</div>
@@ -250,5 +261,6 @@ export default function AdminReviewPage() {
         </table>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

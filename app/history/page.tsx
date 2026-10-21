@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 interface ShipmentRecord {
   id: string;
@@ -104,7 +105,8 @@ export default function ShipmentHistoryPage() {
   const reviewCount = shipments.filter((s) => s.result === "Needs review").length;
 
   return (
-    <div>
+    <ProtectedRoute>
+      <div>
       <div className="section-heading">
         <div>
           <div className="page-kicker">Operations / Recent checks</div>
@@ -211,5 +213,6 @@ export default function ShipmentHistoryPage() {
         </table>
       </div>
     </div>
-  );
+  </ProtectedRoute>
+);
 }

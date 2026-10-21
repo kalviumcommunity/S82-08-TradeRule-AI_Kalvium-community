@@ -16,9 +16,23 @@ export async function POST(request: Request) {
       process.env.API_BASE_URL ||
       process.env.NEXT_PUBLIC_RAG_API_URL || "http://127.0.0.1:8000";
 
+    const backendHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    const authHeader = request.headers.get("authorization");
+    if (authHeader) {
+      backendHeaders["Authorization"] = authHeader;
+    }
+
+    const cookieHeader = request.headers.get("cookie");
+    if (cookieHeader) {
+      backendHeaders["Cookie"] = cookieHeader;
+    }
+
     const backendResponse = await fetch(`${backendBaseUrl}/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: backendHeaders,
       body: JSON.stringify({ question }),
     });
 

@@ -1377,60 +1377,118 @@ Use `.env.example` for required configuration.
 
 ---
 
-# Future Improvements
+# Authentication & Role-Based Access Control (RBAC)
 
-Potential improvements include:
+TradeRule AI incorporates enterprise-grade authentication and authorization:
 
-- Production deployment
-- Redis-based distributed caching
-- Background document processing
-- Larger-scale batch ingestion
-- Retry queues
-- Authentication and authorization
-- Role-based access control
-- Additional regulatory data sources
-- Advanced metadata filtering
-- Improved re-ranking
-- Automated evaluation pipelines
-- Production observability dashboards
-- Persistent conversation storage
-- Audit logging
-- Document versioning
-- Regulatory update monitoring
-- Multi-user deployment
-- Cloud-hosted Qdrant
-- Improved provider-based cost tracking
+### 1. Security Architecture
+- **Password Hashing**: Passwords are saved with **Argon2id** (`argon2-cffi`), with memory cost (64 MB), time cost (3 iterations), and 4 parallelism lanes.
+- **Session Tokens**: JWT signed via `HS256` using a server-side secret key (`JWT_SECRET`). Tokens expire in 24 hours.
+- **Dual Transport**: Supports both HttpOnly, Secure, SameSite cookies (`traderule_session`) and `Authorization: Bearer <token>` headers for cross-origin resilience.
+- **Self-Elevation Prevention**: The registration endpoint (`POST /auth/register`) enforces `role: "user"`. Manipulation of payload fields cannot elevate a user to `admin`.
+- **RBAC Enforcement**:
+  - `user`: Access to compliance RAG queries (`/chat`, `/query`, `/query/stream`), conversation threads (`/thread`), and shipment history (`/history`).
+  - `admin`: Exclusive access to document ingestion & upload (`/documents`), document inventory (`/documents/list`), and compliance audit review logs (`/logs`, `/admin/review`).
+
+### 2. Administrator Bootstrap Procedure
+TradeRule AI does not use hardcoded administrator credentials. The first administrator account is created via the documented bootstrap utility:
+
+**Command Line Bootstrap:**
+```bash
+python backend/src/bootstrap_admin.py --email admin@traderule.ai --password "YourStrongPassword123!" --name "Lead Compliance Officer"
+```
+
+**Environment Variable Bootstrap:**
+In containerized and cloud environments (such as Render), configure the following environment variables. The service will verify whether an admin exists on startup and automatically seed the account:
+- `ADMIN_BOOTSTRAP_EMAIL=admin@traderule.ai`
+- `ADMIN_BOOTSTRAP_PASSWORD=YourStrongPassword123!`
+- `ADMIN_BOOTSTRAP_NAME=TradeRule Administrator`
+
+*Safeguard*: The bootstrap utility detects existing administrators and terminates safely without altering accounts unless the `--force` flag is explicitly provided.
 
 ---
 
-# Project Goals
+# Persistent Storage & Database Configuration
 
-TradeRule AI aims to provide:
+- **User Accounts & Auth**: Managed by SQLAlchemy in `backend/src/db.py`.
+  - Development: SQLite at `data/traderule.db` (auto-created).
+  - Production: PostgreSQL configured via `DATABASE_URL=postgresql://user:pass@host:5432/dbname`.
+- **Vector Embeddings**:
+  - Primary: Qdrant Cloud (`QDRANT_URL` and `QDRANT_API_KEY`).
+  - Resilient Fallback: Local vector repository `data/embedding_store.json` using exact cosine similarity retrieval if Qdrant Cloud is unreachable or clusters reset.
+- **Document Storage**: Uploaded compliance PDFs/texts are stored under `uploads/` with filename sanitization and size guardrails (10MB limit).
 
-- Grounded compliance Q&A
-- Source citation and verification
-- Hallucination prevention
-- Shipment-aware retrieval
-- Reduced compliance lookup time
-- Conversational follow-up support
-- Knowledge-base extensibility
-- Auditable AI answers
+---
+
+# Automated Tests & Security Verification
+
+A comprehensive pytest and Next.js validation suite covers authentication, RBAC, and RAG integration:
+
+### 1. Run Automated Backend Tests
+```bash
+pytest tests/ -v
+```
+**Test Coverage (12 passed tests):**
+- `test_password_hashing_argon2id`: Verifies Argon2id algorithm, salting, and verification.
+- `test_registration_and_no_role_elevation`: Ensures public registration cannot assign `admin` role.
+- `test_duplicate_registration_rejected`: Enforces unique email constraint (HTTP 409).
+- `test_login_success_and_invalid_credentials`: Validates credentials, token generation, and wrong password rejection (HTTP 401).
+- `test_unauthenticated_request_rejected`: Verifies protected endpoints reject requests without token/cookie (HTTP 401).
+- `test_rbac_user_cannot_access_admin_endpoints`: Confirms regular user is blocked from `/documents` and `/logs` (HTTP 403 Forbidden).
+- `test_admin_can_access_admin_endpoints`: Confirms admin accesses `/documents` and `/logs` (HTTP 200).
+- `test_logout_clears_cookie`: Ensures `/auth/logout` clears session cookies.
+- `test_public_health_endpoint`: Ensures `/health` remains public for monitoring.
+- `test_authenticated_rag_query_with_citations`: End-to-end RAG query generating grounded response with citations.
+- `test_out_of_domain_query_safe_refusal`: Guardrail test confirming safe refusal on insufficient context.
+- `test_document_upload_protection`: Enforces admin-only privileges for PDF/text uploads.
+
+### 2. Run Frontend Production Build Check
+```bash
+npm run build
+```
+Compiles all 19 Next.js pages and API routes with zero TypeScript errors.
+
+---
+
+# Production Deployment Guide
+
+### Backend: Render Deployment
+1. Connect your repository to [Render](https://render.com).
+2. Create a new **Web Service** or use the included `render.yaml` Blueprint.
+3. Configure the following build & start settings:
+   - **Environment**: Python 3.13
+   - **Build Command**: `pip install --upgrade pip && pip install -r requirements.txt`
+   - **Start Command**: `python backend/src/bootstrap_admin.py && uvicorn api:app --app-dir backend/src --host 0.0.0.0 --port $PORT`
+   - **Health Check Path**: `/health`
+4. Set required Environment Variables in the Render Dashboard:
+   - `GEMINI_API_KEY`: Your Google Gemini API key.
+   - `JWT_SECRET`: Random 64-character secret key.
+   - `DATABASE_URL`: PostgreSQL connection string.
+   - `ALLOWED_ORIGINS`: `https://your-traderule-frontend.vercel.app,http://localhost:3000`
+   - `ADMIN_BOOTSTRAP_EMAIL` & `ADMIN_BOOTSTRAP_PASSWORD`: Initial admin credentials.
+
+### Frontend: Vercel Deployment
+1. Import the repository in [Vercel](https://vercel.com).
+2. Framework Preset: **Next.js**.
+3. Configure Environment Variables:
+   - `NEXT_PUBLIC_RAG_API_URL`: Your deployed Render backend URL (e.g., `https://traderule-ai-backend.onrender.com`).
+   - `API_BASE_URL`: Your deployed Render backend URL.
+4. Deploy the application.
+
+---
+
+# Future Improvements
+
+Potential improvements include:
+- Redis-based distributed caching
+- Background document ingestion workers (Celery/BullMQ)
+- OAuth2 social login (Google, GitHub)
+- Multi-tenant organizational isolation
+- Production observability dashboards (Datadog, OpenTelemetry)
 
 ---
 
 # License
 
-This project is currently being developed as part of the TradeRule AI project and Sprint 2 RAG application.
+This project is developed as part of TradeRule AI.
 
----
-
-# Final Sprint Tag
-
-The final Sprint 2 deliverable should be identified with:
-
-```bash
-git tag sprint-2-rag-final
-git push origin sprint-2-rag-final
-```
-
-This tag identifies the repository version submitted as the Sprint 2 RAG application final deliverable.

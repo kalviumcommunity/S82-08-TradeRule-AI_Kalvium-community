@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_RAG_API_URL || "http://127.0.0.1:8000";
@@ -51,6 +53,7 @@ const DEFAULT_DOCUMENTS: DocumentRow[] = [
 ];
 
 export default function AdminUploadPage() {
+  const { token } = useAuth();
   const [documents, setDocuments] = useState<DocumentRow[]>(DEFAULT_DOCUMENTS);
   const [uploading, setUploading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
@@ -58,13 +61,16 @@ export default function AdminUploadPage() {
     text: string;
   } | null>(null);
 
-  useEffect(() => {
-    fetchDocumentsList();
-  }, []);
-
-  async function fetchDocumentsList() {
+  const fetchDocumentsList = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/documents/list`);
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${API_BASE_URL}/documents/list`, {
+        headers,
+        credentials: "include",
+      });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -74,7 +80,11 @@ export default function AdminUploadPage() {
     } catch {
       // Keep defaults
     }
-  }
+  }, [token]);
+
+  useEffect(() => {
+    fetchDocumentsList();
+  }, [fetchDocumentsList]);
 
   async function handleFileSelected(file: File) {
     if (!file) return;
@@ -89,8 +99,15 @@ export default function AdminUploadPage() {
       const formData = new FormData();
       formData.append("file", file);
 
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE_URL}/documents`, {
         method: "POST",
+        headers,
+        credentials: "include",
         body: formData,
       });
 
@@ -153,7 +170,8 @@ export default function AdminUploadPage() {
   }
 
   return (
-    <div>
+    <ProtectedRoute requireAdmin={true}>
+      <div>
       <div className="section-heading">
         <div>
           <div className="page-kicker">Administration / Knowledge base</div>
@@ -261,5 +279,6 @@ export default function AdminUploadPage() {
         </table>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }
