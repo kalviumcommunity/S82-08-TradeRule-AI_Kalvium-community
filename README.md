@@ -1455,10 +1455,11 @@ Compiles all 19 Next.js pages and API routes with zero TypeScript errors.
 ### Backend: Render Deployment
 1. Connect your repository to [Render](https://render.com).
 2. Create a new **Web Service** or use the included `render.yaml` Blueprint.
-3. Configure the following build & start settings:
+3. Configure the following build & start settings in the Render Dashboard (or let `render.yaml` configure it automatically):
+   - **Root Directory**: `backend`
    - **Environment**: Python 3.13
    - **Build Command**: `pip install --upgrade pip && pip install -r requirements.txt`
-   - **Start Command**: `python backend/src/bootstrap_admin.py && uvicorn api:app --app-dir backend/src --host 0.0.0.0 --port $PORT`
+   - **Start Command**: `python src/bootstrap_admin.py && uvicorn src.api:app --host 0.0.0.0 --port $PORT`
    - **Health Check Path**: `/health`
 4. Set required Environment Variables in the Render Dashboard:
    - `GEMINI_API_KEY`: Your Google Gemini API key.

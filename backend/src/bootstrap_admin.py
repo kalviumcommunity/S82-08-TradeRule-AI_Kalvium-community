@@ -77,18 +77,22 @@ def bootstrap_admin(
 
 
 def main() -> None:
+    env_email = os.getenv("ADMIN_BOOTSTRAP_EMAIL") or os.getenv("BOOTSTRAP_ADMIN_EMAIL")
+    env_password = os.getenv("ADMIN_BOOTSTRAP_PASSWORD") or os.getenv("BOOTSTRAP_ADMIN_PASSWORD")
+    env_name = os.getenv("ADMIN_BOOTSTRAP_NAME") or os.getenv("BOOTSTRAP_ADMIN_NAME", "System Administrator")
+
     parser = argparse.ArgumentParser(description="Bootstrap TradeRule AI Administrator Account")
-    parser.add_argument("--email", help="Admin email address", default=os.getenv("BOOTSTRAP_ADMIN_EMAIL"))
-    parser.add_argument("--password", help="Admin password", default=os.getenv("BOOTSTRAP_ADMIN_PASSWORD"))
-    parser.add_argument("--name", help="Admin full name", default=os.getenv("BOOTSTRAP_ADMIN_NAME", "System Administrator"))
+    parser.add_argument("--email", help="Admin email address", default=env_email)
+    parser.add_argument("--password", help="Admin password", default=env_password)
+    parser.add_argument("--name", help="Admin full name", default=env_name)
     parser.add_argument("--force", action="store_true", help="Force creation even if an admin exists")
 
     args = parser.parse_args()
 
     if not args.email or not args.password:
-        print("[ERROR] Both email and password are required to bootstrap an administrator.")
-        print("Provide them via flags (--email, --password) or environment variables (BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD).")
-        sys.exit(1)
+        print("[INFO] No administrator bootstrap credentials provided in environment or CLI flags.")
+        print("[INFO] Skipping administrator bootstrap; existing users/admins remain unchanged.")
+        return
 
     try:
         bootstrap_admin(
