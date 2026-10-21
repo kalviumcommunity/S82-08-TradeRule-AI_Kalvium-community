@@ -1,17 +1,2 @@
-tiktoken==0.14.0
-beautifulsoup4
-pypdf
-reportlab
-fastapi
-uvicorn
-python-dotenv
-openai
-google-genai
-pydantic
-qdrant-client
-python-multipart
-argon2-cffi>=25.1.0
-pyjwt>=2.15.0
-sqlalchemy>=2.0.0
-psycopg2-binary>=2.9.0
-pytest>=8.0.0
+-r backend/src/requirements.txt
+
