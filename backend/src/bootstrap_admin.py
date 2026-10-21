@@ -76,6 +76,34 @@ def bootstrap_admin(
         db.close()
 
 
+def auto_bootstrap_admin_from_env() -> bool:
+    """
+    Attempt to bootstrap an initial administrator from environment variables.
+    Safe for automated startup:
+    - Exits quietly if no credentials configured.
+    - Exits quietly if an administrator already exists.
+    - Never logs passwords or secrets.
+    """
+    env_email = os.getenv("ADMIN_BOOTSTRAP_EMAIL") or os.getenv("BOOTSTRAP_ADMIN_EMAIL")
+    env_password = os.getenv("ADMIN_BOOTSTRAP_PASSWORD") or os.getenv("BOOTSTRAP_ADMIN_PASSWORD")
+    env_name = os.getenv("ADMIN_BOOTSTRAP_NAME") or os.getenv("BOOTSTRAP_ADMIN_NAME", "TradeRule Administrator")
+
+    if not env_email or not env_password:
+        return False
+
+    try:
+        bootstrap_admin(
+            email=env_email,
+            password=env_password,
+            name=env_name,
+            force=False,
+        )
+        return True
+    except Exception as exc:
+        print(f"[WARN] Automatic administrator bootstrap skipped or failed: {exc}")
+        return False
+
+
 def main() -> None:
     env_email = os.getenv("ADMIN_BOOTSTRAP_EMAIL") or os.getenv("BOOTSTRAP_ADMIN_EMAIL")
     env_password = os.getenv("ADMIN_BOOTSTRAP_PASSWORD") or os.getenv("BOOTSTRAP_ADMIN_PASSWORD")
@@ -108,3 +136,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

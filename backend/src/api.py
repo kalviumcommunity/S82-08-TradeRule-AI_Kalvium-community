@@ -10,9 +10,13 @@ import sys
 import time
 import uuid
 import json
+import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any
+
+logger = logging.getLogger("traderule.auth")
+
 
 
 # ============================================================
@@ -80,6 +84,7 @@ try:
         validate_email_address,
         validate_password_strength,
     )
+    from .bootstrap_admin import auto_bootstrap_admin_from_env
 except ImportError:
     from db import init_db, get_db, User, get_user_by_email, create_user
     from auth import (
@@ -93,6 +98,7 @@ except ImportError:
         validate_email_address,
         validate_password_strength,
     )
+    from bootstrap_admin import auto_bootstrap_admin_from_env
 
 
 # ============================================================
@@ -294,6 +300,8 @@ class HealthResponse(BaseModel):
 
     version: str
 
+    database: str | None = None
+
 
 # ============================================================
 # CACHE SETTINGS
@@ -347,10 +355,24 @@ async def lifespan(
     app: FastAPI,
 ):
     """
-    Initialize DB schema and RAG clients when the API starts.
+    Initialize DB schema, log active database dialect, auto-seed admin if configured, and initialize RAG clients.
     """
 
     init_db()
+
+    try:
+        from db import engine
+        logger.info(f"[DB] Database initialized successfully. Active dialect: {engine.dialect.name}")
+    except Exception as exc:
+        logger.warning(f"[DB] Could not determine dialect: {exc}")
+
+    try:
+        bootstrapped = auto_bootstrap_admin_from_env()
+        if bootstrapped:
+            logger.info("[AUTH_BOOTSTRAP] Administrator account bootstrapped successfully from environment.")
+    except Exception as exc:
+        logger.warning(f"[AUTH_BOOTSTRAP] Automatic administrator bootstrap error: {exc}")
+
     initialize_clients()
 
     yield
@@ -406,13 +428,20 @@ app.add_middleware(
 )
 def health_check() -> HealthResponse:
     """
-    Check whether API is running.
+    Check whether API and database are running.
     """
+    db_status = "connected"
+    try:
+        from db import engine
+        db_status = f"connected ({engine.dialect.name})"
+    except Exception as exc:
+        db_status = f"degraded ({str(exc)[:40]})"
 
     return HealthResponse(
         status="ok",
         service=API_TITLE,
         version=API_VERSION,
+        database=db_status,
     )
 
 
@@ -478,17 +507,37 @@ def login(
     email = payload.email.strip().lower()
     user = get_user_by_email(db, email)
 
-    if not user or not verify_password(payload.password, user.password_hash):
+    if not user:
+        dialect = db.bind.dialect.name if db.bind else "unknown"
+        logger.warning(
+            f"[AUTH] Login failed: User not found for email='{email}' (db_dialect={dialect})"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+        )
+
+    if not verify_password(payload.password, user.password_hash):
+        logger.warning(
+            f"[AUTH] Login failed: Password mismatch for user_id='{user.id}', email='{email}'"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
         )
 
     if not user.is_active:
+        logger.warning(
+            f"[AUTH] Login failed: Account is inactive for user_id='{user.id}', email='{email}'"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive.",
         )
+
+    logger.info(
+        f"[AUTH] Login success: user_id='{user.id}', email='{user.email}', role='{user.role}'"
+    )
 
     token = create_access_token(user)
     set_auth_cookie(response, token)
